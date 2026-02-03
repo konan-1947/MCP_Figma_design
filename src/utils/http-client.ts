@@ -180,33 +180,30 @@ export class HttpClient {
     }
   }
 
-  public async executeCommand(
-    toolName: string,
-    parameters: Record<string, any>
-  ): Promise<MCPToolResult> {
+  // Execute command via New API
+  public async executeNewCommand(command: FigmaCommand): Promise<MCPToolResult> {
     if (!this.isConnected) {
       await this.connect();
     }
 
     return new Promise((resolve, reject) => {
       const commandId = this.generateCommandId();
-      const command: FigmaCommand = {
-        type: toolName,
-        data: parameters,
+      const fullCommand: FigmaCommand = {
+        ...command,
         id: commandId
       };
 
       const context: CommandExecutionContext = {
         commandId,
-        toolName,
-        parameters,
+        toolName: `${command.category}.${command.operation}`,
+        parameters: command.parameters,
         startTime: Date.now()
       };
 
       // Setup timeout (30 seconds default)
       const timeout = setTimeout(() => {
         this.pendingCommands.delete(commandId);
-        reject(new Error(`Command ${toolName} timeout after ${this.config.timeout}ms`));
+        reject(new Error(`Command ${command.category}.${command.operation} timeout after ${this.config.timeout}ms`));
       }, this.config.timeout);
 
       // Store pending command
@@ -218,27 +215,27 @@ export class HttpClient {
       });
 
       // Execute command via HTTP
-      this.executeHttpCommand(command)
+      this.executeHttpCommand(fullCommand)
         .then((response) => {
           // Clear timeout and remove from pending
           clearTimeout(timeout);
           this.pendingCommands.delete(commandId);
 
           const executionTime = Date.now() - context.startTime;
-          console.error(`[HTTP Client] ✅ Command ${toolName} completed in ${executionTime}ms`);
+          console.error(`[HTTP Client] ✅ Command ${command.category}.${command.operation} completed in ${executionTime}ms`);
 
           // Convert HTTP response to MCPToolResult
           const result: MCPToolResult = {
             success: response.success,
             data: response.data,
-            error: response.error,
+            error: typeof response.error === 'string' ? response.error : response.error?.message,
             commandId: response.id
           };
 
           if (response.success) {
             resolve(result);
           } else {
-            reject(new Error(response.error || 'Command failed'));
+            reject(new Error(result.error || 'Command failed'));
           }
         })
         .catch((error) => {
@@ -249,13 +246,14 @@ export class HttpClient {
     });
   }
 
+
   private async executeHttpCommand(command: FigmaCommand): Promise<FigmaResponse> {
     try {
-      console.error(`[HTTP Client] 🚀 Executing command: ${command.type} (${command.id})`);
+      console.error(`[HTTP Client] 🚀 Executing command: ${command.category}.${command.operation} (${command.id})`);
 
       const response = await this.retryRequest(
         () => this.client.post('/figma/command', command),
-        `Command ${command.type}`
+        `Command ${command.category}.${command.operation}`
       );
 
       return response.data;
@@ -270,11 +268,16 @@ export class HttpClient {
       return {
         id: command.id,
         success: false,
-        error: `HTTP ${statusCode || 'ERROR'}: ${errorMessage}`,
+        error: {
+          code: `HTTP_${statusCode || 'ERROR'}`,
+          message: errorMessage,
+          details: httpError.response?.data
+        },
         data: null
       };
     }
   }
+
 
   public async checkConnection(): Promise<{ bridge_connected: boolean; figma_connected: boolean }> {
     try {

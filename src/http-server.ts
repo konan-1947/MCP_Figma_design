@@ -135,13 +135,15 @@ export class FigmaHttpServer {
         const command: FigmaCommand = req.body;
         const clientId = req.headers['x-client-id'] as string;
 
-        if (!command || !command.id || !command.type) {
+        // Validate new command format
+        if (!command || !command.id || !command.category || !command.operation || !command.parameters) {
           return res.status(400).json({
-            error: 'Invalid command format. Required: id, type'
+            error: 'Invalid command format. Required: id, category, operation, parameters'
           });
         }
 
-        console.error(`[HttpServer] 🚀 Received command ${command.type} (${command.id})`);
+        const commandDescription = `${command.category}.${command.operation}`;
+        console.error(`[HttpServer] 🚀 Received command ${commandDescription} (${command.id})`);
 
         const figmaClient = this.findClientByType('figma');
         if (!figmaClient) {

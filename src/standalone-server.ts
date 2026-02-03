@@ -8,10 +8,12 @@ import {
   ErrorCode,
   McpError
 } from '@modelcontextprotocol/sdk/types.js';
+import FigmaTools from './tools/index.js';
 
 // Simplified MCP Server without HTTP client dependencies for standalone use
 class StandaloneFigmaMCPServer {
   private server: Server;
+  private tools: FigmaTools;
 
   constructor() {
     this.server = new Server(
@@ -26,86 +28,28 @@ class StandaloneFigmaMCPServer {
       }
     );
 
+    // Create tools instance with null HTTP client (standalone mode)
+    this.tools = new FigmaTools(null as any);
     this.setupHandlers();
   }
 
   private setupHandlers(): void {
     // List tools handler
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      // Get tools from FigmaTools class but add a status tool
+      const standardTools = this.tools.getToolDefinitions();
+      const statusTool = {
+        name: 'figma_status',
+        description: 'Kiểm tra trạng thái kết nối Figma Plugin',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: []
+        }
+      };
+
       return {
-        tools: [
-          {
-            name: 'lay_selection',
-            description: 'Lấy thông tin về các element đang được chọn trong Figma',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-              required: []
-            }
-          },
-          {
-            name: 'them_text',
-            description: 'Thêm text element vào Figma canvas',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                noi_dung: {
-                  type: 'string',
-                  description: 'Nội dung text cần thêm'
-                },
-                x: {
-                  type: 'number',
-                  description: 'Vị trí X (mặc định: 0)'
-                },
-                y: {
-                  type: 'number',
-                  description: 'Vị trí Y (mặc định: 0)'
-                },
-                font_size: {
-                  type: 'number',
-                  description: 'Kích thước font (mặc định: 16)'
-                },
-                mau_chu: {
-                  type: 'string',
-                  description: 'Màu chữ hex (mặc định: #000000)'
-                }
-              },
-              required: ['noi_dung']
-            }
-          },
-          {
-            name: 'tao_man_hinh',
-            description: 'Tạo frame/màn hình mới với header',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                ten: {
-                  type: 'string',
-                  description: 'Tên frame/màn hình'
-                },
-                tieu_de: {
-                  type: 'string',
-                  description: 'Tiêu đề header'
-                },
-                loai: {
-                  type: 'string',
-                  enum: ['mobile', 'tablet', 'desktop'],
-                  description: 'Loại màn hình'
-                }
-              },
-              required: ['ten', 'tieu_de', 'loai']
-            }
-          },
-          {
-            name: 'figma_status',
-            description: 'Kiểm tra trạng thái kết nối Figma Plugin',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-              required: []
-            }
-          }
-        ]
+        tools: [...standardTools, statusTool]
       };
     });
 
@@ -116,48 +60,39 @@ class StandaloneFigmaMCPServer {
       try {
         console.error(`[MCP Standalone] Tool called: ${name}`); // Use stderr for debugging
 
-        // Simple responses without HTTP client dependency
-        switch (name) {
-          case 'figma_status':
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify({
-                    success: true,
-                    status: 'MCP Server đang hoạt động',
-                    message: 'Để sử dụng đầy đủ tính năng, hãy đảm bảo Figma Plugin và Bridge Server đang chạy',
-                    bridge_required: true,
-                    plugin_required: true
-                  }, null, 2)
-                }
-              ]
-            };
-
-          case 'lay_selection':
-          case 'them_text':
-          case 'tao_man_hinh':
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify({
-                    success: false,
-                    error: 'Figma Plugin chưa kết nối',
-                    message: 'Để sử dụng tool này, hãy:\n1. Chạy Bridge Server: npm run dev:bridge\n2. Load và chạy Figma Plugin\n3. Thử lại command',
-                    tool: name,
-                    parameters: args
-                  }, null, 2)
-                }
-              ]
-            };
-
-          default:
-            throw new McpError(
-              ErrorCode.MethodNotFound,
-              `Unknown tool: ${name}`
-            );
+        // Handle special status tool
+        if (name === 'figma_status') {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  success: true,
+                  status: 'MCP Server đang hoạt động',
+                  message: 'Để sử dụng đầy đủ tính năng, hãy đảm bảo Figma Plugin và Bridge Server đang chạy',
+                  bridge_required: true,
+                  plugin_required: true
+                }, null, 2)
+              }
+            ]
+          };
         }
+
+        // For all other tools, return "not connected" message since this is standalone mode
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: false,
+                error: 'Figma Plugin chưa kết nối',
+                message: 'Để sử dụng tool này, hãy:\n1. Chạy Bridge Server: npm run dev:http\n2. Load và chạy Figma Plugin\n3. Thử lại command',
+                tool: name,
+                parameters: args
+              }, null, 2)
+            }
+          ]
+        };
 
       } catch (error) {
         console.error(`[MCP Standalone] Tool ${name} error:`, error);
