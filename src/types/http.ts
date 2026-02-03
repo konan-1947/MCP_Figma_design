@@ -1,14 +1,20 @@
+// Command format for New API
 export interface FigmaCommand {
-  type: string;        // "lay_selection", "them_text", "tao_man_hinh"...
-  data: any;           // Tool parameters
+  category: string;    // "node-creation", "node-modification", etc.
+  operation: string;   // "createFrame", "setPosition", etc.
+  parameters: Record<string, any>; // Tool parameters
   id: string;          // Unique command ID
 }
 
-export interface FigmaResponse {
+export interface FigmaResponse<T = any> {
   id: string;          // Command ID tương ứng
   success: boolean;
-  data?: any;
-  error?: string;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  } | string; // Support both new error format and legacy string format
 }
 
 export interface ConnectionInfo {

@@ -229,10 +229,11 @@
         </div>
 
         <div class="test-panel">
-            <div class="status-title">🧪 Test Commands</div>
+            <div class="status-title">🧪 Test Commands (New API)</div>
             <button class="test-button" onclick="figmaUI.testPing()">Ping Test</button>
-            <button class="test-button" onclick="figmaUI.testGetSelected()">Get Selected</button>
+            <button class="test-button" onclick="figmaUI.testGetSelected()">Get Selected (TODO)</button>
             <button class="test-button" onclick="figmaUI.testCreateRectangle()">Create Rectangle</button>
+            <button class="test-button" onclick="figmaUI.testCreateText()">Create Text</button>
         </div>
 
         <div class="logs">
@@ -385,7 +386,7 @@
             async sendCommand(command) {
                 try {
                     this.commandCount++;
-                    this.log(`Gửi command: ${command.type}`, 'info');
+                    this.log(`Gửi command: ${command.category}.${command.operation}`, 'info');
 
                     const response = await fetch(`${this.baseUrl}/figma/command`, {
                         method: 'POST',
@@ -425,23 +426,36 @@
             }
 
             async testGetSelected() {
+                this.log('Get selected function cần implement selection tools trong New API', 'warning');
+                // TODO: Implement với New API selection navigation tools
+            }
+
+            async testCreateRectangle() {
                 const command = {
-                    type: 'lay_selection',
-                    data: {},
+                    category: 'node-creation',
+                    operation: 'createRectangle',
+                    parameters: {
+                        width: 100,
+                        height: 50,
+                        x: 0,
+                        y: 0,
+                        name: 'Test Rectangle'
+                    },
                     id: `test_${Date.now()}`
                 };
                 await this.sendCommand(command);
             }
 
-            async testCreateRectangle() {
+            async testCreateText() {
                 const command = {
-                    type: 'them_hinh_chu_nhat',
-                    data: {
-                        width: 100,
-                        height: 50,
+                    category: 'node-creation',
+                    operation: 'createText',
+                    parameters: {
+                        characters: 'Hello New API!',
                         x: 0,
-                        y: 0,
-                        mau_nen: '#3B82F6'
+                        y: 100,
+                        fontSize: 16,
+                        name: 'Test Text'
                     },
                     id: `test_${Date.now()}`
                 };

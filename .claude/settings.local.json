@@ -22,7 +22,19 @@
       "Bash(find src -name \"*.ts\" -exec sed -i 's/console\\\\.log/console.error/g' {} ;)",
       "Bash(curl http://localhost:8765/health)",
       "Bash(curl -X POST http://localhost:8765/figma/command -H \"Content-Type: application/json\" -d '{\"\"id\"\":\"\"test123\"\",\"\"type\"\":\"\"them_hinh_chu_nhat\"\",\"\"data\"\":{\"\"width\"\":100,\"\"height\"\":50,\"\"x\"\":0,\"\"y\"\":0,\"\"mau_nen\"\":\"\"#3B82F6\"\"}}')",
-      "Bash(npm run dev:mcp)"
+      "Bash(npm run dev:mcp)",
+      "Bash(curl -f http://localhost:8765/health)",
+      "Bash(dir \"D:\\\\desktop_data\\\\Code_Dao_2026\\\\MCP_Figma_design\\\\dist\")",
+      "Bash(dir \"D:\\\\desktop_data\\\\Code_Dao_2026\\\\MCP_Figma_design\\\\plugin\\\\dist\")",
+      "Bash(find dist -name \"*.js\" -exec grep -l \"executeLegacyTool\\\\|ToolSchemas\\\\|lay_selection\\\\|them_text\" {} ;)",
+      "Bash(dir \"D:\\\\desktop_data\\\\Code_Dao_2026\\\\MCP_Figma_design\\\\src\\\\tools\")",
+      "Bash(find dist -name \"*.js\" -exec grep -l \"lay_selection\\\\|them_text\\\\|tao_man_hinh\" {} ;)",
+      "Bash(node -e \"const tools = require\\(''./dist/tools/index.js''\\); console.log\\(''Available tools:'', tools.default ? ''FigmaTools class loaded'' : ''Failed to load''\\);\")",
+      "Bash(node -e \"const FigmaTools = require\\(''./dist/tools/index.js''\\).default; const tools = new FigmaTools\\(null\\); const toolDefs = tools.getToolDefinitions\\(\\); console.log\\(''✅ Final verification:''\\); console.log\\(''- Total tools:'', toolDefs.length\\); console.log\\(''- Categories:'', tools.getAvailableCategories\\(\\).join\\('', ''\\)\\); console.log\\(''- All tools use English naming:'', toolDefs.every\\(t => /^[a-zA-Z]+$/.test\\(t.name.replace\\(/[A-Z]/g, ''''\\)\\)\\)\\);\")",
+      "Bash(npm run dev:http)",
+      "Bash(timeout 5)",
+      "Bash(netstat -aon)",
+      "Bash(findstr :8765)"
     ]
   }
 }

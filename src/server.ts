@@ -54,8 +54,9 @@ export class FigmaMCPServer {
           await this.httpClient.connect();
         }
 
-        // Execute tool
-        const result = await this.tools.executeTool(name as any, args);
+        // All tools use the new API
+        console.error(`[MCP Server] Executing tool: ${name}`);
+        const result = await this.tools.executeNewTool(name, args);
 
         if (result.success) {
           return {
