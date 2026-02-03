@@ -19,7 +19,10 @@
       "Bash(npm run start)",
       "Bash(npm run start:http)",
       "Bash(curl http://localhost:8765/figma/status)",
-      "Bash(find src -name \"*.ts\" -exec sed -i 's/console\\\\.log/console.error/g' {} ;)"
+      "Bash(find src -name \"*.ts\" -exec sed -i 's/console\\\\.log/console.error/g' {} ;)",
+      "Bash(curl http://localhost:8765/health)",
+      "Bash(curl -X POST http://localhost:8765/figma/command -H \"Content-Type: application/json\" -d '{\"\"id\"\":\"\"test123\"\",\"\"type\"\":\"\"them_hinh_chu_nhat\"\",\"\"data\"\":{\"\"width\"\":100,\"\"height\"\":50,\"\"x\"\":0,\"\"y\"\":0,\"\"mau_nen\"\":\"\"#3B82F6\"\"}}')",
+      "Bash(npm run dev:mcp)"
     ]
   }
 }

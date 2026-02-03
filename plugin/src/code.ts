@@ -25,7 +25,22 @@ class FigmaHttpClient {
   private maxReconnectAttempts = 10;
 
   constructor() {
+    this.logToUI('FigmaHttpClient khởi tạo', 'info');
     this.connect();
+  }
+
+  // Helper để log ra UI
+  private logToUI(message: string, level: 'info' | 'success' | 'error' | 'warning' = 'info') {
+    console.log(`[Figma Plugin] ${message}`);
+    try {
+      figma.ui.postMessage({
+        type: 'log',
+        payload: { message, level }
+      });
+    } catch (error) {
+      // UI chưa được tạo hoặc đã đóng
+      console.log(`[Figma Plugin] Cannot send to UI: ${message}`);
+    }
   }
 
   private async connect(): Promise<void> {
@@ -167,6 +182,7 @@ class FigmaHttpClient {
   // private handleMessage method is no longer needed
 
   private async handleCommand(command: FigmaCommand): Promise<void> {
+    this.logToUI(`📥 Nhận command: ${command.type}`, 'info');
     console.log(`[Figma Plugin] Executing command: ${command.type}`, command.data);
 
     try {
@@ -216,19 +232,22 @@ class FigmaHttpClient {
         data: result
       });
 
+      this.logToUI(`✅ Hoàn thành: ${command.type}`, 'success');
       figma.notify(`Hoàn thành: ${command.type}`, { timeout: 1000 });
 
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logToUI(`❌ Lỗi ${command.type}: ${errorMessage}`, 'error');
       console.error(`[Figma Plugin] Command ${command.type} failed:`, error);
 
       // Send error response via HTTP
       await this.sendResponse({
         id: command.id,
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage
       });
 
-      figma.notify(`Lỗi: ${command.type} - ${error instanceof Error ? error.message : 'Unknown error'}`, { error: true });
+      figma.notify(`Lỗi: ${command.type} - ${errorMessage}`, { error: true });
     }
   }
 
@@ -264,10 +283,25 @@ class FigmaHttpClient {
   }
 
   private async themText(data: any): Promise<any> {
+    this.logToUI(`Bắt đầu tạo text: "${data.noi_dung}"`, 'info');
     const textNode = figma.createText();
 
-    // Load font trước khi set text
-    await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+    // Load font trước khi set text với fallback
+    try {
+      this.logToUI('Đang load font Inter Regular...', 'info');
+      await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+      this.logToUI('Font Inter Regular loaded thành công', 'success');
+    } catch (error) {
+      this.logToUI(`Lỗi load font Inter: ${error instanceof Error ? error.message : 'Unknown error'}`, 'warning');
+      this.logToUI('Fallback sang font Roboto Regular...', 'info');
+      try {
+        await figma.loadFontAsync({ family: "Roboto", style: "Regular" });
+        this.logToUI('Font Roboto Regular loaded thành công', 'success');
+      } catch (fallbackError) {
+        this.logToUI(`Lỗi load fallback font: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`, 'error');
+        throw fallbackError;
+      }
+    }
 
     textNode.characters = data.noi_dung;
     textNode.x = data.x || 0;
@@ -297,6 +331,7 @@ class FigmaHttpClient {
   }
 
   private async taoManHinh(data: any): Promise<any> {
+    this.logToUI(`Tạo màn hình: ${data.ten} (${data.loai})`, 'info');
     const frame = figma.createFrame();
     frame.name = data.ten;
 
@@ -316,9 +351,32 @@ class FigmaHttpClient {
       color: { r: 1, g: 1, b: 1 }
     }];
 
-    // Thêm header
-    await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+    // Load fonts trước khi tạo text
+    let fontFamily = "Inter";
+    let fontStyle = "Bold";
+
+    try {
+      this.logToUI('Đang load font Inter Bold và Regular cho header...', 'info');
+      await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+      await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+      this.logToUI('Font Inter Bold và Regular loaded thành công', 'success');
+    } catch (error) {
+      this.logToUI(`Lỗi load font Inter: ${error instanceof Error ? error.message : 'Unknown error'}`, 'warning');
+      this.logToUI('Fallback sang font Roboto Bold và Regular...', 'info');
+      try {
+        await figma.loadFontAsync({ family: "Roboto", style: "Bold" });
+        await figma.loadFontAsync({ family: "Roboto", style: "Regular" });
+        this.logToUI('Font Roboto Bold và Regular loaded thành công', 'success');
+        fontFamily = "Roboto";
+      } catch (fallbackError) {
+        this.logToUI(`Lỗi load fallback font: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`, 'error');
+        throw fallbackError;
+      }
+    }
+
     const headerText = figma.createText();
+    // Set font trước khi set characters
+    headerText.fontName = { family: fontFamily, style: fontStyle };
     headerText.characters = data.tieu_de;
     headerText.fontSize = 24;
     headerText.x = 20;
@@ -371,7 +429,12 @@ class FigmaHttpClient {
     button.cornerRadius = 8;
 
     // Add text
-    await figma.loadFontAsync({ family: "Inter", style: "Medium" });
+    try {
+      await figma.loadFontAsync({ family: "Inter", style: "Medium" });
+    } catch (error) {
+      console.warn('[Figma Plugin] Inter Medium font not available, using Roboto as fallback');
+      await figma.loadFontAsync({ family: "Roboto", style: "Medium" });
+    }
     const buttonText = figma.createText();
     buttonText.characters = data.text;
     buttonText.fontSize = 14;
@@ -452,8 +515,14 @@ class FigmaHttpClient {
     form.paddingBottom = 32;
     form.itemSpacing = 24;
 
-    await figma.loadFontAsync({ family: "Inter", style: "Bold" });
-    await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+    try {
+      await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+      await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+    } catch (error) {
+      console.warn('[Figma Plugin] Inter fonts not available, using Roboto as fallback');
+      await figma.loadFontAsync({ family: "Roboto", style: "Bold" });
+      await figma.loadFontAsync({ family: "Roboto", style: "Regular" });
+    }
 
     // Title
     const title = figma.createText();
@@ -549,8 +618,14 @@ class FigmaHttpClient {
       blendMode: 'NORMAL'
     }];
 
-    await figma.loadFontAsync({ family: "Inter", style: "Bold" });
-    await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+    try {
+      await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+      await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+    } catch (error) {
+      console.warn('[Figma Plugin] Inter fonts not available, using Roboto as fallback');
+      await figma.loadFontAsync({ family: "Roboto", style: "Bold" });
+      await figma.loadFontAsync({ family: "Roboto", style: "Regular" });
+    }
 
     // Title
     const title = figma.createText();
@@ -630,7 +705,9 @@ class FigmaHttpClient {
 
 // Initialize plugin
 console.log('[Figma Plugin] Starting MCP Controller Plugin...');
-new FigmaHttpClient();
 
-// Show UI
-figma.showUI(__html__, { width: 300, height: 200, title: 'MCP Controller' });
+// Show UI first before creating client
+figma.showUI(__html__, { width: 400, height: 600, title: 'MCP Controller' });
+
+// Then create client (this will allow logToUI to work)
+new FigmaHttpClient();

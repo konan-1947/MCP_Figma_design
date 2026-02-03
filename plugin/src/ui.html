@@ -391,6 +391,8 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'X-Client-Type': 'figma-ui',
+                            'X-Client-ID': 'ui-client'
                         },
                         body: JSON.stringify(command)
                     });
@@ -424,7 +426,7 @@
 
             async testGetSelected() {
                 const command = {
-                    type: 'get-selection',
+                    type: 'lay_selection',
                     data: {},
                     id: `test_${Date.now()}`
                 };
@@ -433,12 +435,13 @@
 
             async testCreateRectangle() {
                 const command = {
-                    type: 'create-rectangle',
+                    type: 'them_hinh_chu_nhat',
                     data: {
                         width: 100,
                         height: 50,
                         x: 0,
-                        y: 0
+                        y: 0,
+                        mau_nen: '#3B82F6'
                     },
                     id: `test_${Date.now()}`
                 };
