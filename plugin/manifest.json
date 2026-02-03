@@ -1,0 +1,12 @@
+{
+  "name": "Figma MCP Controller",
+  "id": "figma-mcp-controller",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["*"],
+    "reasoning": "Plugin cần kết nối tới local HTTP server để giao tiếp với MCP Bridge"
+  }
+}

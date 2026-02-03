@@ -1,0 +1,29 @@
+{
+  "name": "figma-mcp-controller-plugin",
+  "version": "1.0.0",
+  "description": "Figma Plugin để nhận commands từ MCP Server qua HTTP",
+  "main": "dist/code.js",
+  "scripts": {
+    "build": "npm run clean && webpack --mode=production && cp src/ui.html dist/ui.html",
+    "dev": "webpack --mode=development --watch",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.88.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.2.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4",
+    "ts-loader": "^9.4.4",
+    "rimraf": "^5.0.5"
+  },
+  "keywords": [
+    "figma",
+    "plugin",
+    "mcp",
+    "http",
+    "ui-automation"
+  ],
+  "author": "MCP Figma Controller",
+  "license": "MIT"
+}
