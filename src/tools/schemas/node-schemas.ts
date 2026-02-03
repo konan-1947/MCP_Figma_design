@@ -21,19 +21,22 @@ import {
 export const CreateFrameSchema = z.object({
   name: z.string().optional().describe('Frame name'),
   ...OptionalSizeSchema.shape,
-  ...OptionalPositionSchema.shape
+  ...OptionalPositionSchema.shape,
+  fills: z.array(PaintSchema).optional().describe('Frame background fills')
 }).describe('Create a frame node');
 
 export const CreateRectangleSchema = z.object({
   ...SizeSchema.shape,
   ...OptionalPositionSchema.shape,
-  name: z.string().optional().describe('Rectangle name')
+  name: z.string().optional().describe('Rectangle name'),
+  fills: z.array(PaintSchema).optional().describe('Rectangle fills')
 }).describe('Create a rectangle node');
 
 export const CreateEllipseSchema = z.object({
   ...SizeSchema.shape,
   ...OptionalPositionSchema.shape,
-  name: z.string().optional().describe('Ellipse name')
+  name: z.string().optional().describe('Ellipse name'),
+  fills: z.array(PaintSchema).optional().describe('Ellipse fills')
 }).describe('Create an ellipse node');
 
 export const CreatePolygonSchema = z.object({

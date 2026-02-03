@@ -46,6 +46,126 @@ class FigmaHttpClient {
     }
   }
 
+  // === COLOR UTILITY METHODS ===
+
+  // Chuyển đổi hex color sang RGBA format (0-1 range)
+  private hexToRgba(hex: string, alpha: number = 1): { r: number, g: number, b: number, a: number } {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    return { r, g, b, a: alpha };
+  }
+
+  // Chuyển đổi RGB sang RGBA format (0-1 range)
+  private rgbToRgba(r: number, g: number, b: number, a: number = 1): { r: number, g: number, b: number, a: number } {
+    return {
+      r: r / 255,
+      g: g / 255,
+      b: b / 255,
+      a
+    };
+  }
+
+  // Chuyển đổi HSL sang RGBA format (0-1 range)
+  private hslToRgba(h: number, s: number, l: number, a: number = 1): { r: number, g: number, b: number, a: number } {
+    h = h / 360;
+    s = s / 100;
+    l = l / 100;
+
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+
+    return {
+      r: hue2rgb(p, q, h + 1/3),
+      g: hue2rgb(p, q, h),
+      b: hue2rgb(p, q, h - 1/3),
+      a
+    };
+  }
+
+  // Phân tích chuỗi màu từ nhiều định dạng
+  private parseColorString(color: string): { r: number, g: number, b: number, a: number } {
+    // Handle hex colors
+    if (color.startsWith('#')) {
+      return this.hexToRgba(color);
+    }
+
+    // Handle rgb() format: rgb(255, 0, 0)
+    const rgbMatch = color.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+    if (rgbMatch) {
+      return this.rgbToRgba(parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3]));
+    }
+
+    // Handle rgba() format: rgba(255, 0, 0, 0.5)
+    const rgbaMatch = color.match(/rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)/);
+    if (rgbaMatch) {
+      return this.rgbToRgba(parseInt(rgbaMatch[1]), parseInt(rgbaMatch[2]), parseInt(rgbaMatch[3]), parseFloat(rgbaMatch[4]));
+    }
+
+    // Handle hsl() format: hsl(0, 100%, 50%)
+    const hslMatch = color.match(/hsl\s*\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*\)/);
+    if (hslMatch) {
+      return this.hslToRgba(parseInt(hslMatch[1]), parseInt(hslMatch[2]), parseInt(hslMatch[3]));
+    }
+
+    // Fallback to black for invalid format
+    return { r: 0, g: 0, b: 0, a: 1 };
+  }
+
+  // Tạo Paint object từ màu
+  private createSolidPaint(color: string | {r: number, g: number, b: number, a?: number}): Paint {
+    let rgba;
+    if (typeof color === 'string') {
+      rgba = this.parseColorString(color);
+    } else {
+      rgba = { ...color, a: color.a ?? 1 };
+    }
+
+    return {
+      type: 'SOLID',
+      color: { r: rgba.r, g: rgba.g, b: rgba.b },
+      opacity: rgba.a
+    };
+  }
+
+  // Xử lý fill từ parameters
+  private processFill(fill: any): Paint {
+    if (typeof fill === 'string') {
+      // String color (hex, rgb, hsl, etc.)
+      return this.createSolidPaint(fill);
+    } else if (fill && typeof fill === 'object') {
+      // Paint object từ schema
+      if (fill.type === 'SOLID' && fill.color) {
+        if (typeof fill.color === 'string') {
+          // Hex color in paint object
+          return this.createSolidPaint(fill.color);
+        } else {
+          // RGBA object
+          return {
+            type: 'SOLID',
+            color: { r: fill.color.r, g: fill.color.g, b: fill.color.b },
+            opacity: fill.color.a ?? fill.opacity ?? 1
+          };
+        }
+      } else {
+        // Other paint types (gradients, images, etc.) - pass through
+        return fill as Paint;
+      }
+    }
+
+    // Fallback to black
+    return this.createSolidPaint('#000000');
+  }
+
   private async connect(): Promise<void> {
     try {
       console.log('[Figma Plugin] Connecting to HTTP server...');
@@ -457,13 +577,24 @@ class FigmaHttpClient {
   // === NEW API NODE CREATION IMPLEMENTATIONS ===
 
   private async createFrame(params: any): Promise<any> {
-    const { name = 'Frame', width = 100, height = 100, x = 0, y = 0 } = params;
+    const {
+      name = 'Frame',
+      width = 100, height = 100,
+      x = 0, y = 0,
+      fills // Thêm parameter fills từ schema cho background frame
+    } = params;
 
     const frame = figma.createFrame();
     frame.name = name;
     frame.resize(width, height);
     frame.x = x;
     frame.y = y;
+
+    // Áp dụng background màu nếu được cung cấp
+    if (fills && fills.length > 0) {
+      frame.fills = fills.map((fill: any) => this.processFill(fill));
+    }
+    // Không có else clause - giữ nguyên default Figma khi không có màu
 
     figma.currentPage.appendChild(frame);
 
@@ -474,18 +605,30 @@ class FigmaHttpClient {
       x: frame.x,
       y: frame.y,
       width: frame.width,
-      height: frame.height
+      height: frame.height,
+      fills: frame.fills // Bao gồm thông tin fills trong response
     };
   }
 
   private async createRectangle(params: any): Promise<any> {
-    const { width, height, x = 0, y = 0, name = 'Rectangle' } = params;
+    const {
+      width, height,
+      x = 0, y = 0,
+      name = 'Rectangle',
+      fills // Thêm parameter fills từ schema
+    } = params;
 
     const rect = figma.createRectangle();
     rect.name = name;
     rect.resize(width, height);
     rect.x = x;
     rect.y = y;
+
+    // Áp dụng màu nếu được cung cấp
+    if (fills && fills.length > 0) {
+      rect.fills = fills.map((fill: any) => this.processFill(fill));
+    }
+    // Không có else clause - giữ nguyên default Figma (đen) khi không có màu
 
     figma.currentPage.appendChild(rect);
 
@@ -496,18 +639,30 @@ class FigmaHttpClient {
       x: rect.x,
       y: rect.y,
       width: rect.width,
-      height: rect.height
+      height: rect.height,
+      fills: rect.fills // Bao gồm thông tin fills trong response
     };
   }
 
   private async createEllipse(params: any): Promise<any> {
-    const { width, height, x = 0, y = 0, name = 'Ellipse' } = params;
+    const {
+      width, height,
+      x = 0, y = 0,
+      name = 'Ellipse',
+      fills // Thêm parameter fills từ schema
+    } = params;
 
     const ellipse = figma.createEllipse();
     ellipse.name = name;
     ellipse.resize(width, height);
     ellipse.x = x;
     ellipse.y = y;
+
+    // Áp dụng màu nếu được cung cấp
+    if (fills && fills.length > 0) {
+      ellipse.fills = fills.map((fill: any) => this.processFill(fill));
+    }
+    // Không có else clause - giữ nguyên default Figma (đen) khi không có màu
 
     figma.currentPage.appendChild(ellipse);
 
@@ -518,12 +673,19 @@ class FigmaHttpClient {
       x: ellipse.x,
       y: ellipse.y,
       width: ellipse.width,
-      height: ellipse.height
+      height: ellipse.height,
+      fills: ellipse.fills // Bao gồm thông tin fills trong response
     };
   }
 
   private async createText(params: any): Promise<any> {
-    const { characters, x = 0, y = 0, fontSize = 16, name = 'Text' } = params;
+    const {
+      characters,
+      x = 0, y = 0,
+      fontSize = 16,
+      name = 'Text',
+      fills // Thêm parameter fills từ schema cho màu text
+    } = params;
 
     // Load font with fallback
     try {
@@ -543,6 +705,12 @@ class FigmaHttpClient {
     textNode.x = x;
     textNode.y = y;
 
+    // Áp dụng màu text nếu được cung cấp
+    if (fills && fills.length > 0) {
+      textNode.fills = fills.map((fill: any) => this.processFill(fill));
+    }
+    // Không có else clause - giữ nguyên default Figma (đen) khi không có màu
+
     figma.currentPage.appendChild(textNode);
 
     return {
@@ -552,7 +720,8 @@ class FigmaHttpClient {
       characters: textNode.characters,
       fontSize: textNode.fontSize,
       x: textNode.x,
-      y: textNode.y
+      y: textNode.y,
+      fills: textNode.fills // Bao gồm thông tin fills trong response
     };
   }
 

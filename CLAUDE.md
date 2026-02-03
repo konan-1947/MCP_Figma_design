@@ -90,11 +90,25 @@ Claude → MCP Server → HTTP API → HTTP Server → Figma Plugin → Figma Ca
 
 ### MCP Tools có sẵn
 
-Hệ thống sử dụng **New API (Categorized Tools)**:
-- `node-creation`: `createFrame`, `createRectangle`, `createEllipse`, `createText`
-- `node-modification`: `setPosition`, `resize`, `setName`, `setVisible`
-- `style-modification`: Các tools chỉnh sửa style
-- `text-operations`: Các operations với text
+Hệ thống đã được refactor hoàn toàn sang **New API (Categorized Tools Architecture)**:
+
+**Node Creation Tools** (`src/tools/categories/node-creation.ts`)
+- `createFrame`: Tạo frame container
+- `createRectangle`: Tạo hình chữ nhật
+- `createEllipse`: Tạo hình ellipse
+- `createText`: Tạo text element
+
+**Node Modification Tools** (`src/tools/categories/node-modification.ts`)
+- `setPosition`: Thay đổi vị trí node
+- `resize`: Thay đổi kích thước node
+- `setName`: Đặt tên cho node
+- `setVisible`: Hiện/ẩn node
+
+**Style Modification Tools** (`src/tools/categories/style-modification.ts`)
+- Các tools để chỉnh sửa styling (fills, strokes, effects)
+
+**Text Operations Tools** (`src/tools/categories/text-operations.ts`)
+- Các operations đặc biệt cho text elements
 
 ## Cấu hình quan trọng
 
@@ -105,7 +119,8 @@ Hệ thống sử dụng **New API (Categorized Tools)**:
 - Source maps và declarations enabled
 
 ### Claude Desktop Integration
-File `config/claude_desktop_config.json` chứa cấu hình để tích hợp với Claude Desktop. Path cần được update theo môi trường thực tế.
+File `config/claude_desktop_config.json` chứa cấu hình để tích hợp với Claude Desktop.
+**Lưu ý**: Config hiện tại point tới `dist/hybrid-server.js` nhưng thực tế entry point là `dist/index.js` - cần kiểm tra và update path.
 
 ### Figma Plugin
 Plugin yêu cầu network access cho HTTP polling. Configured trong `plugin/manifest.json`.
@@ -113,9 +128,11 @@ Plugin yêu cầu network access cho HTTP polling. Configured trong `plugin/mani
 ## Patterns và Conventions
 
 ### Tool Architecture
-- **Category-based Organization**: Tools được nhóm theo chức năng (node-creation, node-modification, etc.)
-- **Zod Schema Validation**: End-to-end type safety với automatic JSON Schema conversion
-- **Single API Path**: Simplified architecture với chỉ New API
+- **Category-based Organization**: Tools được tổ chức trong `src/tools/categories/` theo từng nhóm chức năng
+- **Zod Schema Validation**: End-to-end type safety với schemas trong `src/tools/schemas/`
+- **Automatic JSON Schema Generation**: Zod schemas được convert tự động sang MCP JSON Schema
+- **Single API Path**: Đã migration hoàn toàn từ legacy tools sang New API
+- **Centralized Tool Registration**: All tools được export thông qua `src/tools/categories/index.ts`
 
 ### Error Handling
 - MCP Server sử dụng structured error responses
@@ -154,6 +171,23 @@ RESTful endpoints với consistent naming:
 - Test HTTP endpoints để isolate issues
 
 ### Tool Debugging
-- Tất cả tools sử dụng New API trong `categories/` và `executeNewTool()`
-- Kiểm tra tool categories và naming khi debug
-- Sử dụng console logs để trace tool execution
+- Tất cả tools sử dụng New API thông qua `executeNewTool()` trong `FigmaTools` class
+- Tools được organize theo categories trong `src/tools/categories/`
+- Schema validation errors sẽ hiển thị detailed field-level errors
+- HTTP client có comprehensive error handling và timeout management
+- Sử dụng console logs trong MCP Server và Plugin để trace execution flow
+
+### Adding New Tools
+1. Tạo Zod schema trong `src/tools/schemas/[category]-schemas.ts`
+2. Implement tool handler trong `src/tools/categories/[category].ts`
+3. Export tool từ category và add vào `allTools` array
+4. Test tool với Claude Desktop hoặc test harness
+5. Update documentation nếu cần
+
+### Key File Locations
+- **Main entry**: `src/index.ts`
+- **MCP Server**: `src/server.ts`
+- **HTTP Bridge**: `src/http-server.ts`, `src/start-http.ts`
+- **Tool System**: `src/tools/index.ts` (FigmaTools class)
+- **HTTP Client**: `src/utils/http-client.ts`
+- **Plugin**: `plugin/src/code.ts`
