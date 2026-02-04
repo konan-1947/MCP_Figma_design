@@ -1,17 +1,23 @@
 import { z } from 'zod';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import HttpClient from '../utils/http-client.js';
+import FigmaApiClient from '../utils/figma-api-client.js';
 import { MCPToolResult, FigmaCommand } from '../types/http.js';
 
 // Import new API tools and schemas
-import { allTools, toolsByCategory } from './categories/index.js';
-import { McpTool, FigmaCommandTemplate } from './types.js';
+import { allTools, toolsByCategory, setFigmaApiClient } from './categories/index.js';
+import { McpTool, FigmaCommandTemplate, ApiToolResult } from './types.js';
 
 export class FigmaTools {
   private httpClient: HttpClient;
+  private figmaApiClient: FigmaApiClient;
 
   constructor(httpClient: HttpClient) {
     this.httpClient = httpClient;
+    this.figmaApiClient = new FigmaApiClient();
+
+    // Inject the API client into figma-api tools
+    setFigmaApiClient(this.figmaApiClient);
   }
 
   // NEW API: Get tool definitions from categorized tools
@@ -41,19 +47,41 @@ export class FigmaTools {
 
       console.error(`[Tools] Executing NEW API ${toolName} with params:`, validatedParams);
 
-      // Get command template from tool handler
-      const commandTemplate = await tool.handler(validatedParams);
+      // Get result from tool handler
+      const handlerResult = await tool.handler(validatedParams);
 
-      // Convert template to full command with ID (will be set by HTTP client)
-      const command: FigmaCommand = {
-        ...commandTemplate,
-        id: '' // Will be set by HTTP client
-      };
+      // Check if this is an API tool result (direct API call) or command template (plugin call)
+      if ('data' in handlerResult || 'error' in handlerResult) {
+        // This is a REST API tool result
+        const apiResult = handlerResult as ApiToolResult;
 
-      // Execute command via HTTP client
-      const result = await this.httpClient.executeNewCommand(command);
+        if (apiResult.error) {
+          return {
+            success: false,
+            error: apiResult.error,
+            details: apiResult.details
+          };
+        }
 
-      return result;
+        return {
+          success: true,
+          data: apiResult.data
+        };
+      } else {
+        // This is a plugin command template
+        const commandTemplate = handlerResult as FigmaCommandTemplate;
+
+        // Convert template to full command with ID (will be set by HTTP client)
+        const command: FigmaCommand = {
+          ...commandTemplate,
+          id: '' // Will be set by HTTP client
+        };
+
+        // Execute command via HTTP client
+        const result = await this.httpClient.executeNewCommand(command);
+
+        return result;
+      }
 
     } catch (error) {
       console.error(`[Tools] Error executing NEW API ${toolName}:`, error);
@@ -239,6 +267,62 @@ export class FigmaTools {
 
   public getAllNewTools(): McpTool[] {
     return allTools;
+  }
+
+  // === FIGMA API CLIENT METHODS ===
+
+  public getFigmaApiClient(): FigmaApiClient {
+    return this.figmaApiClient;
+  }
+
+  public setFigmaAccessToken(token: string): void {
+    this.figmaApiClient.setAccessToken(token);
+  }
+
+  public clearFigmaAccessToken(): void {
+    this.figmaApiClient.clearAccessToken();
+  }
+
+  public hasFigmaAccessToken(): boolean {
+    return this.figmaApiClient.hasAccessToken();
+  }
+
+  // === REST API CONVENIENCE METHODS ===
+
+  public async getFile(fileKey: string, options: any = {}): Promise<MCPToolResult> {
+    return this.executeNewTool('getFile', { fileKey, ...options });
+  }
+
+  public async getFileComponents(fileKey: string): Promise<MCPToolResult> {
+    return this.executeNewTool('getFileComponents', { fileKey });
+  }
+
+  public async getFileStyles(fileKey: string): Promise<MCPToolResult> {
+    return this.executeNewTool('getFileStyles', { fileKey });
+  }
+
+  public async exportImages(fileKey: string, nodeIds: string[], options: any = {}): Promise<MCPToolResult> {
+    return this.executeNewTool('getImages', { fileKey, ids: nodeIds, ...options });
+  }
+
+  public async getUserInfo(): Promise<MCPToolResult> {
+    return this.executeNewTool('getMe', {});
+  }
+
+  public async validateFigmaToken(): Promise<MCPToolResult> {
+    return this.executeNewTool('validateToken', {});
+  }
+
+  public async setFigmaToken(token: string): Promise<MCPToolResult> {
+    return this.executeNewTool('setToken', { token });
+  }
+
+  public async clearFigmaToken(): Promise<MCPToolResult> {
+    return this.executeNewTool('clearToken', {});
+  }
+
+  public async extractFileKeyFromUrl(url: string): Promise<MCPToolResult> {
+    return this.executeNewTool('extractFileKeyFromUrl', { url });
   }
 }
 
