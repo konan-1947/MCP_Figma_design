@@ -1,8 +1,9 @@
 const path = require('path');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   entry: {
-    code: './src/code.ts'
+    code: './src/index.ts'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -20,6 +21,13 @@ module.exports = {
       }
     ]
   },
+  plugins: [
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: 'src/ui.html', to: 'ui.html' }
+      ]
+    })
+  ],
   mode: 'development',
   devtool: 'source-map'
 };

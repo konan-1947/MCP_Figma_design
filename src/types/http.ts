@@ -38,6 +38,7 @@ export interface MCPToolResult {
   success: boolean;
   data?: any;
   error?: string;
+  details?: any;
   commandId?: string;
 }
 

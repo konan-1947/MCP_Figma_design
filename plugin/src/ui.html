@@ -24,7 +24,8 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            padding: 12px;
+            padding: 8px;
+            overflow: hidden;
         }
 
         .header {
@@ -50,16 +51,58 @@
         .status-panel {
             background: #ffffff;
             border-radius: 4px;
-            padding: 12px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             border: 1px solid #dddddd;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f9f9f9;
+            cursor: pointer;
+            border-bottom: 1px solid #eeeeee;
+            transition: background-color 0.2s;
+        }
+
+        .section-header:hover {
+            background: #f0f0f0;
+        }
+
+        .section-header.collapsed {
+            border-bottom: none;
         }
 
         .status-title {
             font-weight: 500;
-            margin-bottom: 8px;
             color: #333333;
             font-size: 12px;
+            margin: 0;
+        }
+
+        .toggle-icon {
+            font-size: 12px;
+            color: #666666;
+            transition: transform 0.2s;
+        }
+
+        .toggle-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .section-content {
+            padding: 12px;
+            transition: max-height 0.3s ease-out;
+            overflow: hidden;
+            max-height: none;
+        }
+
+        .section-content.collapsed {
+            max-height: 0;
+            padding: 0 12px;
         }
 
         .status-grid {
@@ -96,28 +139,21 @@
         }
 
         .logs {
-            flex: 1;
             background: #ffffff;
             border-radius: 4px;
             border: 1px solid #dddddd;
+            overflow: hidden;
+            flex: 1;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-        }
-
-        .logs-title {
-            background: #f9f9f9;
-            padding: 8px 12px;
-            border-bottom: 1px solid #eeeeee;
-            font-weight: 500;
-            font-size: 12px;
-            color: #333333;
+            min-height: 0;
         }
 
         #log-container {
-            flex: 1;
             overflow-y: auto;
             padding: 6px;
+            flex: 1;
+            min-height: 0;
         }
 
         .log-entry {
@@ -146,9 +182,10 @@
         .test-panel {
             background: #ffffff;
             border-radius: 4px;
-            padding: 12px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             border: 1px solid #dddddd;
+            overflow: hidden;
+            flex-shrink: 0;
         }
 
         .test-button {
@@ -172,7 +209,7 @@
             background: #444444;
         }
 
-        /* Simple scrollbar */
+        /* Simple scrollbar for logs */
         #log-container::-webkit-scrollbar {
             width: 4px;
         }
@@ -180,51 +217,90 @@
         #log-container::-webkit-scrollbar-thumb {
             background: #cccccc;
         }
+
+        /* Main body scrollbar */
+        body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        body::-webkit-scrollbar-thumb {
+            background: #cccccc;
+            border-radius: 4px;
+        }
+
+        body::-webkit-scrollbar-thumb:hover {
+            background: #999999;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Figma MCP Controller</h1>
-            <p>HTTP communication with Claude AI</p>
-        </div>
 
         <div class="status-panel">
-            <div class="status-title">Connection Status</div>
-            <div class="status-grid">
-                <div class="status-item">
-                    <span class="status-label">HTTP Server</span>
-                    <div class="status-indicator" id="http-status"></div>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">MCP Server</span>
-                    <div class="status-indicator" id="mcp-status"></div>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Commands</span>
-                    <span class="status-label" id="command-count">0</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Plugin Status</span>
-                    <div class="status-indicator connected" id="plugin-status"></div>
+            <div class="section-header" onclick="figmaUI.toggleSection(this)">
+                <div class="status-title">Connection Status</div>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="section-content">
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">HTTP Server</span>
+                        <div class="status-indicator" id="http-status"></div>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">MCP Server</span>
+                        <div class="status-indicator" id="mcp-status"></div>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Commands</span>
+                        <span class="status-label" id="command-count">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Plugin Status</span>
+                        <div class="status-indicator connected" id="plugin-status"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="test-panel">
-            <div class="status-title">Test Commands</div>
-            <button class="test-button" onclick="figmaUI.testPing()">Ping</button>
-            <button class="test-button" onclick="figmaUI.testGetSelected()">Get Selected</button>
-            <button class="test-button" onclick="figmaUI.testCreateRectangle()">Create Rectangle</button>
-            <button class="test-button" onclick="figmaUI.testCreateText()">Create Text</button>
+            <div class="section-header" onclick="figmaUI.toggleSection(this)">
+                <div class="status-title">Figma API Configuration</div>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="section-content">
+                <div style="margin-bottom: 12px;">
+                    <label for="figma-token" style="font-size: 11px; color: #666666; display: block; margin-bottom: 4px;">Figma API Token:</label>
+                    <input
+                        type="password"
+                        id="figma-token"
+                        placeholder="Nhập Figma API token..."
+                        style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; background: #f9f9f9;"
+                    />
+                </div>
+                <button class="test-button" onclick="figmaUI.saveToken()">Lưu Token</button>
+                <button class="test-button" onclick="figmaUI.testConnection()">Test API Connection</button>
+                <button class="test-button" onclick="figmaUI.testGetTeams()">Get Teams</button>
+                <button class="test-button" onclick="figmaUI.clearToken()">Xóa Token</button>
+            </div>
         </div>
 
+
         <div class="logs">
-            <div class="logs-title">Activity Logs</div>
-            <div id="log-container">
-                <div class="log-entry log-info">
-                    <span class="log-time">--:--</span>
-                    <span>Plugin initializing...</span>
+            <div class="section-header" onclick="figmaUI.toggleSection(this)">
+                <div class="logs-title" style="font-weight: 500; font-size: 12px; color: #333333; margin: 0;">Activity Logs</div>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="section-content" style="padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <div id="log-container">
+                    <div class="log-entry log-info">
+                        <span class="log-time">--:--</span>
+                        <span>Plugin initializing...</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -238,6 +314,8 @@
                 this.baseUrl = 'http://localhost:8765';
                 this.isConnected = false;
                 this.statusPollingInterval = null;
+                this.figmaToken = null;
+                this.loadSavedToken();
                 this.setupHttpConnection();
                 this.updateStatus();
             }
@@ -397,52 +475,140 @@
                 }
             }
 
-            // Test functions
-            async testPing() {
+
+            // === TOKEN MANAGEMENT FUNCTIONS ===
+
+            loadSavedToken() {
+                // Skip localStorage in Figma plugin environment
+                // Token will be loaded from plugin's clientStorage instead
+                this.log('Đang kiểm tra token đã lưu...', 'info');
+            }
+
+            saveToken() {
+                const tokenInput = document.getElementById('figma-token');
+                if (!tokenInput) return;
+
+                const token = tokenInput.value.trim();
+                if (!token) {
+                    this.log('Vui lòng nhập Figma API token', 'warning');
+                    return;
+                }
+
+                // Basic token validation (should start with figd_)
+                if (!token.startsWith('figd_')) {
+                    this.log('Token không hợp lệ. Figma token phải bắt đầu với "figd_"', 'warning');
+                    return;
+                }
+
+                this.figmaToken = token;
+
+                // Send token to main plugin for storage
+                window.parent.postMessage({
+                    pluginMessage: {
+                        type: 'figma-token',
+                        token: this.figmaToken
+                    }
+                }, '*');
+
+                // Mask the input
+                tokenInput.value = '••••••••••••••••';
+
+                this.log('Đã lưu Figma API token', 'success');
+            }
+
+            async testConnection() {
+                if (!this.figmaToken || this.figmaToken === null || this.figmaToken === '') {
+                    this.log('Chưa có token. Vui lòng nhập và lưu token trước', 'warning');
+                    return;
+                }
+
                 try {
-                    const response = await fetch(`${this.baseUrl}/figma/ping`);
-                    const result = await response.text();
-                    this.log(`Ping test: ${result}`, 'success');
+                    this.log('Đang test kết nối Figma API...', 'info');
+
+                    // Test call to Figma API - get current user
+                    const response = await fetch('https://api.figma.com/v1/me', {
+                        method: 'GET',
+                        headers: {
+                            'X-Figma-Token': this.figmaToken
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.log(`Figma API kết nối thành công! User: ${data.email || data.handle || 'Unknown'}`, 'success');
+
+                    } else if (response.status === 403) {
+                        this.log('Token không hợp lệ hoặc đã hết hạn', 'error');
+                    } else {
+                        this.log(`Lỗi API: ${response.status} ${response.statusText}`, 'error');
+                    }
                 } catch (error) {
-                    this.log(`Ping failed: ${error.message}`, 'error');
+                    this.log(`Lỗi kết nối: ${error.message}`, 'error');
                 }
             }
 
-            async testGetSelected() {
-                this.log('Get selected function cần implement selection tools trong New API', 'warning');
-                // TODO: Implement với New API selection navigation tools
+            async testGetTeams() {
+                if (!this.figmaToken || this.figmaToken === null) {
+                    this.log('Chưa có token hoặc chưa test connection', 'warning');
+                    return;
+                }
+
+                try {
+                    this.log('Đang test lấy teams từ Figma API...', 'info');
+
+                    // Send command to main plugin to call Figma API
+                    window.parent.postMessage({
+                        pluginMessage: {
+                            type: 'test-api',
+                            operation: 'getUserTeams'
+                        }
+                    }, '*');
+
+                } catch (error) {
+                    this.log(`Lỗi test teams: ${error.message}`, 'error');
+                }
             }
 
-            async testCreateRectangle() {
-                const command = {
-                    category: 'node-creation',
-                    operation: 'createRectangle',
-                    parameters: {
-                        width: 100,
-                        height: 50,
-                        x: 0,
-                        y: 0,
-                        name: 'Test Rectangle'
-                    },
-                    id: `test_${Date.now()}`
-                };
-                await this.sendCommand(command);
+            clearToken() {
+                this.figmaToken = null;
+
+                const tokenInput = document.getElementById('figma-token');
+                if (tokenInput) {
+                    tokenInput.value = '';
+                    tokenInput.placeholder = 'Nhập Figma API token...';
+                }
+
+                this.log('Đã xóa token', 'info');
+
+                // Notify main plugin
+                window.parent.postMessage({
+                    pluginMessage: {
+                        type: 'clear-token'
+                    }
+                }, '*');
             }
 
-            async testCreateText() {
-                const command = {
-                    category: 'node-creation',
-                    operation: 'createText',
-                    parameters: {
-                        characters: 'Hello New API!',
-                        x: 0,
-                        y: 100,
-                        fontSize: 16,
-                        name: 'Test Text'
-                    },
-                    id: `test_${Date.now()}`
-                };
-                await this.sendCommand(command);
+            // === UI TOGGLE FUNCTIONS ===
+
+            toggleSection(headerElement) {
+                const content = headerElement.nextElementSibling;
+                const icon = headerElement.querySelector('.toggle-icon');
+                const isCollapsed = headerElement.classList.contains('collapsed');
+
+                if (isCollapsed) {
+                    // Expand
+                    headerElement.classList.remove('collapsed');
+                    icon.classList.remove('collapsed');
+                    content.classList.remove('collapsed');
+                    // Set to auto để không giới hạn height
+                    content.style.maxHeight = 'none';
+                } else {
+                    // Collapse
+                    headerElement.classList.add('collapsed');
+                    icon.classList.add('collapsed');
+                    content.classList.add('collapsed');
+                    content.style.maxHeight = '0px';
+                }
             }
         }
 
@@ -458,6 +624,22 @@
             } else if (type === 'command-result') {
                 figmaUI.log(`Command executed: ${payload.command}`,
                            payload.success ? 'success' : 'error');
+            } else if (type === 'token-loaded') {
+                if (payload.hasToken) {
+                    const tokenInput = document.getElementById('figma-token');
+                    if (tokenInput) {
+                        tokenInput.value = '••••••••••••••••';
+                        tokenInput.placeholder = 'Token đã được lưu';
+                    }
+                    figmaUI.log('Đã tải token từ storage', 'info');
+                    figmaUI.figmaToken = payload.token || 'loaded'; // Use actual token or flag
+                }
+            } else if (type === 'api-test-result') {
+                if (payload.success) {
+                    figmaUI.log(`API test ${payload.operation} thành công: ${JSON.stringify(payload.data).substring(0, 100)}...`, 'success');
+                } else {
+                    figmaUI.log(`API test ${payload.operation} thất bại: ${payload.error}`, 'error');
+                }
             }
         };
     </script>

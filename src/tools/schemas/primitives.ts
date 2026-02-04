@@ -74,6 +74,7 @@ export const PaintSchema = z.object({
     color: RGBASchema,
     position: z.number().min(0).max(1)
   })).optional(),
+  gradientTransform: z.array(z.array(z.number())).optional().describe('2D transform matrix for gradient [[a,c,tx], [b,d,ty]]'),
   imageHash: z.string().optional(),
   scaleMode: z.enum(['FILL', 'TILE', 'FIT', 'CROP']).optional()
 });

@@ -26,12 +26,9 @@ class FigmaHttpClient {
   private keepAliveInterval: any = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
-  private figmaApiToken: string | null = null;
 
   constructor() {
     this.logToUI('FigmaHttpClient khởi tạo', 'info');
-    this.setupUIMessageHandler();
-    this.loadStoredToken();
     this.connect();
   }
 
@@ -46,61 +43,6 @@ class FigmaHttpClient {
     } catch (error) {
       // UI chưa được tạo hoặc đã đóng
       console.log(`[Figma Plugin] Cannot send to UI: ${message}`);
-    }
-  }
-
-  // Setup UI message handler
-  private setupUIMessageHandler() {
-    figma.ui.onmessage = async (msg) => {
-      try {
-        if (msg.type === 'figma-token') {
-          this.figmaApiToken = msg.token;
-          this.logToUI('Đã nhận Figma API token từ UI', 'info');
-          console.log('[Figma Plugin] Received Figma API token');
-
-          // Store in clientStorage for persistence
-          await figma.clientStorage.setAsync('figmaApiToken', msg.token);
-
-          // Send token to HTTP bridge for MCP server access
-          await this.setTokenOnBridge(msg.token);
-
-        } else if (msg.type === 'clear-token') {
-          this.figmaApiToken = null;
-          await figma.clientStorage.deleteAsync('figmaApiToken');
-          this.logToUI('Đã xóa token khỏi storage', 'info');
-
-          // Clear token from HTTP bridge
-          await this.clearTokenOnBridge();
-
-        } else if (msg.type === 'test-api') {
-          await this.handleAPITest(msg.operation);
-        }
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        this.logToUI(`Lỗi xử lý message: ${errorMsg}`, 'error');
-      }
-    };
-  }
-
-  // Load stored token on startup
-  private async loadStoredToken() {
-    try {
-      const storedToken = await figma.clientStorage.getAsync('figmaApiToken');
-      if (storedToken) {
-        this.figmaApiToken = storedToken;
-        this.logToUI('Đã tải token từ storage', 'info');
-
-        // Send token to UI for display
-        figma.ui.postMessage({
-          type: 'token-loaded',
-          payload: { hasToken: true }
-        });
-
-        // Send token to HTTP bridge for MCP server access
-        await this.setTokenOnBridge(storedToken);
-      }
-    } catch (error) {
-      console.log('[Figma Plugin] No stored token found');
     }
   }
 
@@ -228,9 +170,6 @@ class FigmaHttpClient {
     try {
       console.log('[Figma Plugin] Connecting to HTTP server...');
 
-      // Load stored token first
-      await this.loadStoredToken();
-
       // Health check first
       const healthResponse = await this.makeRequest('/health', 'GET');
       if (!healthResponse.ok) {
@@ -240,8 +179,7 @@ class FigmaHttpClient {
       // Register as Figma client
       const registerResponse = await this.makeRequest('/figma/register', 'POST', {
         clientType: 'figma-ui',
-        clientId: this.clientId,
-        figmaApiToken: this.figmaApiToken // Send token if available
+        clientId: this.clientId
       });
 
       if (!registerResponse.ok) {
@@ -1881,173 +1819,6 @@ class FigmaHttpClient {
       }
     } catch (error) {
       console.error('[Figma Plugin] Error sending response:', error);
-    }
-  }
-
-  // === FIGMA API METHODS ===
-
-  // Make calls to Figma REST API
-  private async makeFigmaApiRequest(endpoint: string, method: string = 'GET', body?: any): Promise<any> {
-    if (!this.figmaApiToken) {
-      throw new Error('Figma API token không có. Vui lòng cấu hình token trong UI');
-    }
-
-    const options: any = {
-      method,
-      headers: {
-        'X-Figma-Token': this.figmaApiToken,
-        'Content-Type': 'application/json'
-      }
-    };
-
-    if (body && method !== 'GET') {
-      options.body = JSON.stringify(body);
-    }
-
-    const response = await fetch(`https://api.figma.com/v1${endpoint}`, options);
-
-    if (!response.ok) {
-      throw new Error(`Figma API error: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  }
-
-  // Get file info from Figma API
-  private async getFigmaFile(fileKey: string): Promise<any> {
-    this.logToUI(`Đang lấy thông tin file: ${fileKey}`, 'info');
-    const result = await this.makeFigmaApiRequest(`/files/${fileKey}`);
-    this.logToUI(`Đã lấy file: ${result.name}`, 'success');
-    return result;
-  }
-
-  // Get specific nodes from file
-  private async getFigmaNodes(fileKey: string, nodeIds: string[]): Promise<any> {
-    const idsParam = nodeIds.join(',');
-    this.logToUI(`Đang lấy nodes: ${idsParam}`, 'info');
-    const result = await this.makeFigmaApiRequest(`/files/${fileKey}/nodes?ids=${idsParam}`);
-    this.logToUI(`Đã lấy ${Object.keys(result.nodes).length} nodes`, 'success');
-    return result;
-  }
-
-  // Export nodes as images
-  private async exportFigmaNodes(fileKey: string, nodeIds: string[], format: string = 'png', scale: number = 1): Promise<any> {
-    const idsParam = nodeIds.join(',');
-    this.logToUI(`Đang export ${nodeIds.length} nodes`, 'info');
-    const result = await this.makeFigmaApiRequest(`/images/${fileKey}?ids=${idsParam}&format=${format}&scale=${scale}`);
-    this.logToUI('Export thành công', 'success');
-    return result;
-  }
-
-  // Get project files
-  private async getProjectFiles(projectId: string): Promise<any> {
-    this.logToUI(`Đang lấy files trong project: ${projectId}`, 'info');
-    const result = await this.makeFigmaApiRequest(`/projects/${projectId}/files`);
-    this.logToUI(`Tìm thấy ${result.files.length} files`, 'success');
-    return result;
-  }
-
-  // Get current user teams and projects
-  private async getUserTeams(): Promise<any> {
-    this.logToUI('Đang lấy danh sách teams...', 'info');
-    const result = await this.makeFigmaApiRequest('/teams');
-    this.logToUI(`Tìm thấy ${result.teams.length} teams`, 'success');
-    return result;
-  }
-
-  // Handle API tests from UI
-  private async handleAPITest(operation: string): Promise<void> {
-    try {
-      if (!this.figmaApiToken) {
-        this.logToUI('Không có token để test API', 'warning');
-        return;
-      }
-
-      let result: any;
-      switch (operation) {
-        case 'getUserTeams':
-          result = await this.getUserTeams();
-          figma.ui.postMessage({
-            type: 'api-test-result',
-            payload: {
-              operation: 'getUserTeams',
-              success: true,
-              data: result
-            }
-          });
-          break;
-
-        default:
-          this.logToUI(`API test không được hỗ trợ: ${operation}`, 'warning');
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      this.logToUI(`Lỗi API test: ${errorMsg}`, 'error');
-      figma.ui.postMessage({
-        type: 'api-test-result',
-        payload: {
-          operation: operation,
-          success: false,
-          error: errorMsg
-        }
-      });
-    }
-  }
-
-  // === TOKEN BRIDGE MANAGEMENT ===
-
-  private async setTokenOnBridge(token: string): Promise<void> {
-    try {
-      this.logToUI('Đang gửi token đến HTTP bridge...', 'info');
-
-      const response = await fetch(`${this.baseUrl}/figma/token/set`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ token })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          this.logToUI('Đã đồng bộ token với MCP server', 'success');
-        } else {
-          this.logToUI('Lỗi đồng bộ token với MCP server', 'warning');
-        }
-      } else {
-        this.logToUI('Không thể kết nối HTTP bridge để set token', 'warning');
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      this.logToUI(`Lỗi đồng bộ token: ${errorMsg}`, 'warning');
-    }
-  }
-
-  private async clearTokenOnBridge(): Promise<void> {
-    try {
-      this.logToUI('Đang xóa token khỏi HTTP bridge...', 'info');
-
-      const response = await fetch(`${this.baseUrl}/figma/token/clear`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          this.logToUI('Đã xóa token khỏi MCP server', 'success');
-        } else {
-          this.logToUI('Lỗi xóa token khỏi MCP server', 'warning');
-        }
-      } else {
-        this.logToUI('Không thể kết nối HTTP bridge để clear token', 'warning');
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      this.logToUI(`Lỗi clear token: ${errorMsg}`, 'warning');
     }
   }
 }

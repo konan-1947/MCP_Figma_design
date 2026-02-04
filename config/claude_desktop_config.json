@@ -3,7 +3,7 @@
     "figma-mcp-controller": {
       "command": "node",
       "args": [
-        "D:\\desktop_data\\Code_Dao_2026\\MCP_Figma_design\\dist\\hybrid-server.js"
+        "D:\\desktop_data\\Code_Dao_2026\\MCP_Figma_design\\dist\\index.js"
       ],
       "env": {
         "NODE_ENV": "production"

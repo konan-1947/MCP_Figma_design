@@ -34,7 +34,17 @@
       "Bash(npm run dev:http)",
       "Bash(timeout 5)",
       "Bash(netstat -aon)",
-      "Bash(findstr :8765)"
+      "Bash(findstr :8765)",
+      "WebFetch(domain:developers.figma.com)",
+      "Bash(curl -s -X GET http://localhost:8765/figma/token/get)",
+      "Bash(curl -s -X POST -H \"Content-Type: application/json\" -d \"{\"\"token\"\":\"\"test-token-123\"\"}\" http://localhost:8765/figma/token/set)",
+      "Bash(node test-api-integration.js)",
+      "Bash(node dist/start-http.js)",
+      "mcp__figma-desktop__get_design_context",
+      "mcp__figma-desktop__get_metadata",
+      "mcp__figma-desktop__get_screenshot",
+      "Bash(npm install copy-webpack-plugin --save-dev)",
+      "Bash(dir dist)"
     ]
   }
 }

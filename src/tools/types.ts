@@ -27,12 +27,19 @@ export interface FigmaCommandTemplate {
   parameters: Record<string, any>;
 }
 
+// API Tool result for REST API tools
+export interface ApiToolResult {
+  data?: any;
+  error?: string;
+  details?: any;
+}
+
 // MCP Tool definition
 export interface McpTool {
   name: string;
   description: string;
   inputSchema: z.ZodSchema<any>;
-  handler: (params: any) => Promise<FigmaCommandTemplate>;
+  handler: (params: any) => Promise<FigmaCommandTemplate | ApiToolResult>;
 }
 
 // Tool categories enum
@@ -46,7 +53,8 @@ export enum ToolCategory {
   BOOLEAN_OPERATIONS = 'boolean-operations',
   HIERARCHY_OPERATIONS = 'hierarchy-operations',
   SELECTION_NAVIGATION = 'selection-navigation',
-  EXPORT_OPERATIONS = 'export-operations'
+  EXPORT_OPERATIONS = 'export-operations',
+  FIGMA_API = 'figma-api'
 }
 
 // Common response types

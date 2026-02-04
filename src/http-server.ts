@@ -31,6 +31,9 @@ export class FigmaHttpServer {
   private pendingCommands: Map<string, PendingCommand> = new Map();
   private commandQueue: Map<string, FigmaCommand[]> = new Map(); // clientId -> commands[]
 
+  // Token management
+  private figmaAccessToken: string | null = null;
+
   constructor(port: number = 8765) {
     this.port = port;
     this.app = express();
@@ -255,6 +258,105 @@ export class FigmaHttpServer {
 
       res.json({ success: true, timestamp: Date.now() });
     });
+
+    // === TOKEN MANAGEMENT ENDPOINTS ===
+
+    // Set Figma access token
+    this.app.post('/figma/token/set', (req, res) => {
+      try {
+        const { token } = req.body;
+
+        if (!token || typeof token !== 'string' || token.trim().length === 0) {
+          return res.status(400).json({
+            error: 'Valid access token is required'
+          });
+        }
+
+        this.figmaAccessToken = token.trim();
+
+        console.error(`[HttpServer] 🔑 Access token set successfully`);
+
+        res.json({
+          success: true,
+          message: 'Access token set successfully',
+          timestamp: Date.now()
+        });
+
+      } catch (error) {
+        console.error(`[HttpServer] ❌ Token set error:`, error);
+        res.status(500).json({
+          error: error instanceof Error ? error.message : 'Internal server error'
+        });
+      }
+    });
+
+    // Get Figma access token
+    this.app.get('/figma/token/get', (req, res) => {
+      res.json({
+        hasToken: !!this.figmaAccessToken,
+        token: this.figmaAccessToken, // Return actual token for MCP tools
+        timestamp: Date.now()
+      });
+    });
+
+    // Clear Figma access token
+    this.app.post('/figma/token/clear', (req, res) => {
+      this.figmaAccessToken = null;
+
+      console.error(`[HttpServer] 🗑️ Access token cleared`);
+
+      res.json({
+        success: true,
+        message: 'Access token cleared successfully',
+        timestamp: Date.now()
+      });
+    });
+
+    // Validate Figma access token
+    this.app.post('/figma/token/validate', async (req, res) => {
+      try {
+        if (!this.figmaAccessToken) {
+          return res.json({
+            valid: false,
+            message: 'No access token set',
+            timestamp: Date.now()
+          });
+        }
+
+        // Test the token by making a simple API call
+        const response = await fetch('https://api.figma.com/v1/me', {
+          headers: {
+            'X-Figma-Token': this.figmaAccessToken
+          }
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          res.json({
+            valid: true,
+            message: 'Access token is valid',
+            user: userData,
+            timestamp: Date.now()
+          });
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          res.json({
+            valid: false,
+            message: `Token validation failed: ${errorData.message || response.statusText}`,
+            error: errorData,
+            timestamp: Date.now()
+          });
+        }
+
+      } catch (error) {
+        console.error(`[HttpServer] ❌ Token validation error:`, error);
+        res.json({
+          valid: false,
+          message: `Token validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: Date.now()
+        });
+      }
+    });
   }
 
   private waitForCommandResponse(commandId: string, timeoutMs: number = 10000): Promise<FigmaResponse> {
@@ -359,6 +461,10 @@ export class FigmaHttpServer {
           console.error(`[HttpServer]   GET  /figma/commands - Poll for commands (Figma)`);
           console.error(`[HttpServer]   POST /figma/response - Submit response (Figma)`);
           console.error(`[HttpServer]   POST /figma/keepalive - Keep connection alive`);
+          console.error(`[HttpServer]   POST /figma/token/set - Set access token`);
+          console.error(`[HttpServer]   GET  /figma/token/get - Get access token`);
+          console.error(`[HttpServer]   POST /figma/token/clear - Clear access token`);
+          console.error(`[HttpServer]   POST /figma/token/validate - Validate access token`);
           resolve();
         });
 
