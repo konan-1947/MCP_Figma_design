@@ -180,3 +180,82 @@ export type SetVisibleParams = z.infer<typeof SetVisibleSchema>;
 export type SetLockedParams = z.infer<typeof SetLockedSchema>;
 export type SetNameParams = z.infer<typeof SetNameSchema>;
 export type SetBlendModeParams = z.infer<typeof SetBlendModeSchema>;
+
+// === BATCH OPERATION SCHEMAS ===
+
+export const ShapeConfigSchema = z.object({
+  type: z.enum(['rectangle', 'ellipse', 'text']).describe('Shape type to create'),
+  x: z.number().describe('X position'),
+  y: z.number().describe('Y position'),
+  width: z.number().positive().describe('Shape width'),
+  height: z.number().positive().describe('Shape height'),
+  name: z.string().optional().describe('Shape name'),
+  fills: z.array(PaintSchema).optional().describe('Shape fills'),
+  // Text-specific properties
+  characters: z.string().optional().describe('Text content (required for text type)'),
+  fontSize: z.number().positive().optional().describe('Font size for text')
+}).describe('Configuration for a single shape in batch creation');
+
+export const CreateMultipleShapesSchema = z.object({
+  shapes: z.array(ShapeConfigSchema).min(1).max(50).describe('Array of shapes to create'),
+  parentId: NodeIdSchema.optional().describe('Parent node ID (optional)')
+}).describe('Create multiple shapes in a single operation');
+
+export const CreateShapeGridSchema = z.object({
+  rows: z.number().int().positive().max(20).describe('Number of rows'),
+  cols: z.number().int().positive().max(20).describe('Number of columns'),
+  shapeType: z.enum(['rectangle', 'ellipse']).describe('Type of shape to create'),
+  cellWidth: z.number().positive().describe('Width of each cell'),
+  cellHeight: z.number().positive().describe('Height of each cell'),
+  spacing: z.number().min(0).describe('Spacing between shapes'),
+  startX: z.number().default(0).describe('Starting X position'),
+  startY: z.number().default(0).describe('Starting Y position'),
+  fills: z.array(PaintSchema).optional().describe('Fills for all shapes'),
+  parentId: NodeIdSchema.optional().describe('Parent node ID (optional)')
+}).describe('Create a grid of shapes');
+
+export const ElementConfigSchema = z.object({
+  type: z.enum(['frame', 'rectangle', 'ellipse', 'text', 'button']).describe('Element type'),
+  x: z.number().describe('X position'),
+  y: z.number().describe('Y position'),
+  width: z.number().positive().describe('Element width'),
+  height: z.number().positive().describe('Element height'),
+  name: z.string().optional().describe('Element name'),
+  fills: z.array(PaintSchema).optional().describe('Element fills'),
+  // Text-specific
+  characters: z.string().optional().describe('Text content'),
+  fontSize: z.number().positive().optional().describe('Font size'),
+  // Button-specific (creates frame with text)
+  buttonText: z.string().optional().describe('Button text content'),
+  borderRadius: z.number().min(0).optional().describe('Border radius for buttons')
+}).describe('Configuration for a diagram element');
+
+export const CreateDiagramElementsSchema = z.object({
+  elements: z.array(ElementConfigSchema).min(1).max(100).describe('Array of elements to create'),
+  title: z.string().optional().describe('Diagram title'),
+  parentId: NodeIdSchema.optional().describe('Parent node ID (optional)')
+}).describe('Create diagram elements (forms, UI layouts, etc.)');
+
+// Batch modification schemas
+export const BatchPositionUpdateSchema = z.object({
+  updates: z.array(z.object({
+    nodeId: NodeIdSchema,
+    x: z.number(),
+    y: z.number()
+  })).min(1).max(100).describe('Array of position updates')
+}).describe('Update positions of multiple nodes');
+
+export const BatchStyleUpdateSchema = z.object({
+  nodeIds: z.array(NodeIdSchema).min(1).max(100).describe('Node IDs to update'),
+  fills: z.array(PaintSchema).optional().describe('Fills to apply to all nodes'),
+  opacity: z.number().min(0).max(1).optional().describe('Opacity to apply to all nodes')
+}).describe('Apply same style to multiple nodes');
+
+// Type exports for batch operations
+export type ShapeConfigParams = z.infer<typeof ShapeConfigSchema>;
+export type CreateMultipleShapesParams = z.infer<typeof CreateMultipleShapesSchema>;
+export type CreateShapeGridParams = z.infer<typeof CreateShapeGridSchema>;
+export type ElementConfigParams = z.infer<typeof ElementConfigSchema>;
+export type CreateDiagramElementsParams = z.infer<typeof CreateDiagramElementsSchema>;
+export type BatchPositionUpdateParams = z.infer<typeof BatchPositionUpdateSchema>;
+export type BatchStyleUpdateParams = z.infer<typeof BatchStyleUpdateSchema>;

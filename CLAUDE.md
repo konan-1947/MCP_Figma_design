@@ -17,9 +17,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build toàn bộ dự án
 npm run build
 
-# Build riêng MCP Server
-npm run build
-
 # Build riêng Figma Plugin
 npm run build:plugin
 
@@ -35,6 +32,9 @@ npm run dev:all
 # Chạy production
 npm start                  # MCP Server
 npm run start:http        # HTTP Server
+
+# Clean build artifacts
+npm run clean
 ```
 
 ### Plugin Development
@@ -110,6 +110,12 @@ Hệ thống đã được refactor hoàn toàn sang **New API (Categorized Tool
 **Text Operations Tools** (`src/tools/categories/text-operations.ts`)
 - Các operations đặc biệt cho text elements
 
+**Figma API Tools** (`src/tools/categories/figma-api.ts`)
+- `setFigmaToken`: Quản lý Figma access token
+- `getFigmaFile`: Lấy thông tin file từ Figma REST API
+- `getNodeChildren`: Lấy children của một node
+- Direct REST API calls với token management
+
 ## Cấu hình quan trọng
 
 ### TypeScript Configuration
@@ -119,11 +125,58 @@ Hệ thống đã được refactor hoàn toàn sang **New API (Categorized Tool
 - Source maps và declarations enabled
 
 ### Claude Desktop Integration
-File `config/claude_desktop_config.json` chứa cấu hình để tích hợp với Claude Desktop.
-**Lưu ý**: Config hiện tại point tới `dist/hybrid-server.js` nhưng thực tế entry point là `dist/index.js` - cần kiểm tra và update path.
+File `config/claude_desktop_config.json` chứa cấu hình để tích hợp với Claude Desktop. Entry point hiện tại đã được cấu hình chính xác tới `dist/index.js`.
+
+**Setup cho Claude Desktop:**
+- **Windows:** Copy config tới `%APPDATA%\Claude\claude_desktop_config.json`
+- **macOS:** Copy config tới `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Update đường dẫn absolute trong config file phù hợp với system
 
 ### Figma Plugin
 Plugin yêu cầu network access cho HTTP polling. Configured trong `plugin/manifest.json`.
+
+## Setup hệ thống hoàn chỉnh
+
+### Prerequisites và Installation
+```bash
+# Cài đặt dependencies cho main project
+npm install
+
+# Cài đặt dependencies cho plugin
+cd plugin && npm install && cd ..
+```
+
+### Build và Deploy
+```bash
+# Build toàn bộ system
+npm run build
+npm run build:plugin
+```
+
+### Chạy Development Environment
+```bash
+# Start cả HTTP Server và MCP Server
+npm run dev:all
+
+# Hoặc chạy riêng lẻ trong terminals khác nhau
+npm run dev:http    # Terminal 1
+npm run dev:mcp     # Terminal 2
+```
+
+### Cài đặt Figma Plugin
+1. Mở Figma Desktop
+2. Vào Plugins → Development → Import plugin from manifest
+3. Chọn `plugin/manifest.json`
+4. Chạy plugin và kết nối tới HTTP Server
+
+### Verification Commands
+```bash
+# Kiểm tra HTTP Server
+curl http://localhost:8765/health
+
+# Kiểm tra Figma connection
+curl http://localhost:8765/figma/ping
+```
 
 ## Patterns và Conventions
 
@@ -148,9 +201,11 @@ RESTful endpoints với consistent naming:
 - `/figma/response`: Submit responses (Plugin)
 
 ### Development vs Production
-- Development: Watch mode với hot reload
-- Production: Compiled JavaScript từ `dist/`
-- Environment variables qua `NODE_ENV`
+- **Development**: Watch mode với hot reload using `tsx`
+- **Production**: Compiled JavaScript từ `dist/` directory
+- **Environment variables**: Sử dụng `NODE_ENV=production` cho Claude Desktop integration
+- **Module System**: ESNext modules với Node.js resolution
+- **Build Pipeline**: TypeScript → JavaScript với source maps và type declarations
 
 ## Troubleshooting thường gặp
 
@@ -186,8 +241,19 @@ RESTful endpoints với consistent naming:
 
 ### Key File Locations
 - **Main entry**: `src/index.ts`
-- **MCP Server**: `src/server.ts`
-- **HTTP Bridge**: `src/http-server.ts`, `src/start-http.ts`
+- **MCP Server**: `src/server.ts` (FigmaMCPServer class)
+- **HTTP Bridge**: `src/http-server.ts` (FigmaHttpServer), `src/start-http.ts`
 - **Tool System**: `src/tools/index.ts` (FigmaTools class)
+- **Tool Categories**: `src/tools/categories/` (node-creation, node-modification, style-modification, text-operations, figma-api)
+- **Schemas**: `src/tools/schemas/` (Zod validation schemas)
 - **HTTP Client**: `src/utils/http-client.ts`
-- **Plugin**: `plugin/src/code.ts`
+- **Plugin Code**: `plugin/src/code.ts`
+- **Plugin Manifest**: `plugin/manifest.json`
+- **Claude Config**: `config/claude_desktop_config.json`
+
+### Architecture Dependencies
+- **MCP Protocol**: `@modelcontextprotocol/sdk` cho MCP server implementation
+- **HTTP Layer**: Express.js server với CORS và Axios client
+- **Validation**: Zod schemas với automatic JSON Schema generation
+- **Build Tools**: TypeScript compiler cho main project, Webpack cho plugin
+- **Development**: tsx cho watch mode, concurrently cho parallel processes

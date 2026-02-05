@@ -12,7 +12,11 @@ import {
   CreateInstanceSchema,
   CreateSliceSchema,
   CreateVectorSchema,
-  CreateBooleanOperationSchema
+  CreateBooleanOperationSchema,
+  // Batch operation schemas
+  CreateMultipleShapesSchema,
+  CreateShapeGridSchema,
+  CreateDiagramElementsSchema
 } from '../schemas/index.js';
 
 // === B1: NODE CREATION TOOLS ===
@@ -186,6 +190,47 @@ export const createBooleanOperation: McpTool = {
   }
 };
 
+// === BATCH CREATION TOOLS ===
+
+export const createMultipleShapes: McpTool = {
+  name: 'createMultipleShapes',
+  description: 'Create multiple shapes (rectangles, ellipses, text) in a single operation for faster drawing',
+  inputSchema: CreateMultipleShapesSchema,
+  handler: async (params) => {
+    return {
+      category: 'node-creation',
+      operation: 'createMultipleShapes',
+      parameters: params
+    };
+  }
+};
+
+export const createShapeGrid: McpTool = {
+  name: 'createShapeGrid',
+  description: 'Create a grid of shapes with specified rows, columns, and spacing for rapid prototyping',
+  inputSchema: CreateShapeGridSchema,
+  handler: async (params) => {
+    return {
+      category: 'node-creation',
+      operation: 'createShapeGrid',
+      parameters: params
+    };
+  }
+};
+
+export const createDiagramElements: McpTool = {
+  name: 'createDiagramElements',
+  description: 'Create complex diagram elements like forms, UI layouts, or button groups efficiently',
+  inputSchema: CreateDiagramElementsSchema,
+  handler: async (params) => {
+    return {
+      category: 'node-creation',
+      operation: 'createDiagramElements',
+      parameters: params
+    };
+  }
+};
+
 // Export all node creation tools
 export const nodeCreationTools = [
   createFrame,
@@ -200,5 +245,9 @@ export const nodeCreationTools = [
   createInstance,
   createSlice,
   createVector,
-  createBooleanOperation
+  createBooleanOperation,
+  // Batch creation tools
+  createMultipleShapes,
+  createShapeGrid,
+  createDiagramElements
 ];

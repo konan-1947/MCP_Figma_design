@@ -29,7 +29,14 @@ export {
   CreateTextSchema,
   SetPositionSchema,
   ResizeSchema,
-  SetNameSchema
+  SetNameSchema,
+  // Batch creation schemas
+  CreateMultipleShapesSchema,
+  CreateShapeGridSchema,
+  CreateDiagramElementsSchema,
+  // Batch modification schemas
+  BatchPositionUpdateSchema,
+  BatchStyleUpdateSchema
 } from './node-schemas.js';
 
 export {

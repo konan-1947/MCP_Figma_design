@@ -6,7 +6,7 @@ import { PluginConfig } from '../types';
 export const PLUGIN_CONFIG: PluginConfig = {
   baseUrl: 'http://localhost:8765',
   maxReconnectAttempts: 10,
-  pollIntervalMs: 1000,        // Poll every second
+  pollIntervalMs: 200,         // Poll every 200ms for responsive drawing
   keepAliveIntervalMs: 30000   // Every 30 seconds
 };
 

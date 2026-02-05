@@ -50,6 +50,16 @@ export class NodeCreationHandler {
       case 'createBooleanOperation':
         return await this.createBooleanOperation(params);
 
+      // Batch operations
+      case 'createMultipleShapes':
+        return await this.createMultipleShapes(params);
+
+      case 'createShapeGrid':
+        return await this.createShapeGrid(params);
+
+      case 'createDiagramElements':
+        return await this.createDiagramElements(params);
+
       default:
         throw new Error(`Unknown node creation operation: ${operation}`);
     }
@@ -531,6 +541,355 @@ export class NodeCreationHandler {
     };
   }
 
+  // === BATCH OPERATIONS ===
+
+  /**
+   * Tạo multiple shapes trong một lần
+   * Batch operation cho hiệu suất tối ưu
+   */
+  private async createMultipleShapes(params: any): Promise<any> {
+    const { shapes, parentId } = params;
+    const results: any[] = [];
+
+    console.log(`[Batch] Creating ${shapes.length} shapes...`);
+
+    // Use Figma transaction for better performance
+    figma.skipInvisibleInstanceChildren = true;
+
+    try {
+      for (const shapeConfig of shapes) {
+        const {
+          type, x, y, width, height, name, fills,
+          characters, fontSize = 16
+        } = shapeConfig;
+
+        let node: SceneNode;
+
+        switch (type) {
+          case 'rectangle':
+            node = figma.createRectangle();
+            node.resize(width, height);
+            break;
+
+          case 'ellipse':
+            node = figma.createEllipse();
+            node.resize(width, height);
+            break;
+
+          case 'text':
+            if (!characters) {
+              throw new Error('Text shapes require characters property');
+            }
+            // Load font once for all text elements
+            try {
+              await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+            } catch {
+              await figma.loadFontAsync({ family: "Roboto", style: "Regular" });
+            }
+            node = figma.createText();
+            (node as TextNode).characters = characters;
+            (node as TextNode).fontSize = fontSize;
+            node.resize(width, height);
+            break;
+
+          default:
+            throw new Error(`Unsupported shape type: ${type}`);
+        }
+
+        // Set common properties
+        node.name = name || `${type.charAt(0).toUpperCase() + type.slice(1)} ${results.length + 1}`;
+        node.x = x;
+        node.y = y;
+
+        // Apply fills
+        if (fills && fills.length > 0) {
+          node.fills = fills.map((fill: any) => PaintConverter.processFill(fill));
+        }
+
+        // Add to parent or current page
+        if (parentId) {
+          const parent = figma.getNodeById(parentId);
+          if (parent && 'appendChild' in parent) {
+            (parent as ChildrenMixin).appendChild(node);
+          } else {
+            figma.currentPage.appendChild(node);
+          }
+        } else {
+          figma.currentPage.appendChild(node);
+        }
+
+        results.push({
+          id: node.id,
+          name: node.name,
+          type: node.type,
+          x: node.x,
+          y: node.y,
+          width: node.width,
+          height: node.height
+        });
+      }
+
+      figma.notify(`Created ${results.length} shapes successfully`, { timeout: 2000 });
+
+      return {
+        success: true,
+        createdShapes: results,
+        count: results.length
+      };
+
+    } catch (error) {
+      throw new Error(`Batch shape creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      figma.skipInvisibleInstanceChildren = false;
+    }
+  }
+
+  /**
+   * Tạo grid of shapes
+   * Tối ưu cho việc tạo nhiều shapes theo pattern
+   */
+  private async createShapeGrid(params: any): Promise<any> {
+    const {
+      rows, cols, shapeType, cellWidth, cellHeight, spacing,
+      startX = 0, startY = 0, fills, parentId
+    } = params;
+
+    const results: any[] = [];
+    const totalShapes = rows * cols;
+
+    console.log(`[Batch] Creating ${totalShapes} shapes in ${rows}x${cols} grid...`);
+
+    figma.skipInvisibleInstanceChildren = true;
+
+    try {
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const x = startX + col * (cellWidth + spacing);
+          const y = startY + row * (cellHeight + spacing);
+
+          let node: SceneNode;
+
+          switch (shapeType) {
+            case 'rectangle':
+              node = figma.createRectangle();
+              break;
+            case 'ellipse':
+              node = figma.createEllipse();
+              break;
+            default:
+              throw new Error(`Unsupported grid shape type: ${shapeType}`);
+          }
+
+          node.name = `${shapeType} ${row + 1}-${col + 1}`;
+          node.resize(cellWidth, cellHeight);
+          node.x = x;
+          node.y = y;
+
+          if (fills && fills.length > 0) {
+            node.fills = fills.map((fill: any) => PaintConverter.processFill(fill));
+          }
+
+          // Add to parent or current page
+          if (parentId) {
+            const parent = figma.getNodeById(parentId);
+            if (parent && 'appendChild' in parent) {
+              (parent as ChildrenMixin).appendChild(node);
+            } else {
+              figma.currentPage.appendChild(node);
+            }
+          } else {
+            figma.currentPage.appendChild(node);
+          }
+
+          results.push({
+            id: node.id,
+            name: node.name,
+            type: node.type,
+            x: node.x,
+            y: node.y,
+            width: node.width,
+            height: node.height,
+            gridPosition: { row, col }
+          });
+        }
+      }
+
+      figma.notify(`Created ${rows}x${cols} grid (${totalShapes} shapes)`, { timeout: 2000 });
+
+      return {
+        success: true,
+        gridShapes: results,
+        gridInfo: { rows, cols, totalShapes },
+        count: results.length
+      };
+
+    } catch (error) {
+      throw new Error(`Grid creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      figma.skipInvisibleInstanceChildren = false;
+    }
+  }
+
+  /**
+   * Tạo diagram elements (complex layouts)
+   * Hỗ trợ forms, UI components, etc.
+   */
+  private async createDiagramElements(params: any): Promise<any> {
+    const { elements, title, parentId } = params;
+    const results: any[] = [];
+
+    console.log(`[Batch] Creating diagram with ${elements.length} elements...`);
+
+    figma.skipInvisibleInstanceChildren = true;
+
+    try {
+      // Load fonts once for all text elements
+      try {
+        await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+      } catch {
+        await figma.loadFontAsync({ family: "Roboto", style: "Regular" });
+      }
+
+      for (const elementConfig of elements) {
+        const {
+          type, x, y, width, height, name, fills,
+          characters, fontSize = 16, buttonText, borderRadius
+        } = elementConfig;
+
+        let node: SceneNode;
+
+        switch (type) {
+          case 'frame':
+            node = figma.createFrame();
+            node.resize(width, height);
+            break;
+
+          case 'rectangle':
+            node = figma.createRectangle();
+            node.resize(width, height);
+            if (borderRadius) {
+              (node as RectangleNode).cornerRadius = borderRadius;
+            }
+            break;
+
+          case 'ellipse':
+            node = figma.createEllipse();
+            node.resize(width, height);
+            break;
+
+          case 'text':
+            if (!characters) {
+              throw new Error('Text elements require characters property');
+            }
+            node = figma.createText();
+            (node as TextNode).characters = characters;
+            (node as TextNode).fontSize = fontSize;
+            node.resize(width, height);
+            break;
+
+          case 'button':
+            // Create button as frame with text
+            node = figma.createFrame();
+            node.resize(width, height);
+            if (borderRadius) {
+              (node as FrameNode).cornerRadius = borderRadius;
+            }
+
+            // Add button text if provided
+            if (buttonText) {
+              const textNode = figma.createText();
+              textNode.characters = buttonText;
+              textNode.fontSize = fontSize;
+              textNode.textAlignHorizontal = 'CENTER';
+              textNode.textAlignVertical = 'CENTER';
+              textNode.resize(width - 20, height - 10); // Padding
+              textNode.x = 10;
+              textNode.y = 5;
+              (node as FrameNode).appendChild(textNode);
+
+              results.push({
+                id: textNode.id,
+                name: `${name || 'Button'} Text`,
+                type: textNode.type,
+                characters: textNode.characters
+              });
+            }
+            break;
+
+          default:
+            throw new Error(`Unsupported element type: ${type}`);
+        }
+
+        // Set common properties
+        node.name = name || `${type.charAt(0).toUpperCase() + type.slice(1)} ${results.length + 1}`;
+        node.x = x;
+        node.y = y;
+
+        // Apply fills
+        if (fills && fills.length > 0) {
+          node.fills = fills.map((fill: any) => PaintConverter.processFill(fill));
+        }
+
+        // Add to parent or current page
+        if (parentId) {
+          const parent = figma.getNodeById(parentId);
+          if (parent && 'appendChild' in parent) {
+            (parent as ChildrenMixin).appendChild(node);
+          } else {
+            figma.currentPage.appendChild(node);
+          }
+        } else {
+          figma.currentPage.appendChild(node);
+        }
+
+        results.push({
+          id: node.id,
+          name: node.name,
+          type: node.type,
+          x: node.x,
+          y: node.y,
+          width: node.width,
+          height: node.height
+        });
+      }
+
+      // Create title if provided
+      if (title) {
+        const titleNode = figma.createText();
+        titleNode.characters = title;
+        titleNode.fontSize = 24;
+        titleNode.name = 'Diagram Title';
+        titleNode.x = elements[0]?.x || 0;
+        titleNode.y = (elements[0]?.y || 0) - 40;
+
+        figma.currentPage.appendChild(titleNode);
+
+        results.unshift({
+          id: titleNode.id,
+          name: titleNode.name,
+          type: titleNode.type,
+          characters: titleNode.characters,
+          x: titleNode.x,
+          y: titleNode.y
+        });
+      }
+
+      figma.notify(`Created diagram with ${results.length} elements`, { timeout: 2000 });
+
+      return {
+        success: true,
+        diagramElements: results,
+        title: title,
+        count: results.length
+      };
+
+    } catch (error) {
+      throw new Error(`Diagram creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      figma.skipInvisibleInstanceChildren = false;
+    }
+  }
+
   /**
    * Get supported operations
    */
@@ -548,7 +907,11 @@ export class NodeCreationHandler {
       'createVector',
       'createSlice',
       'createComponentSet',
-      'createBooleanOperation'
+      'createBooleanOperation',
+      // Batch operations
+      'createMultipleShapes',
+      'createShapeGrid',
+      'createDiagramElements'
     ];
   }
 

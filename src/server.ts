@@ -59,18 +59,33 @@ export class FigmaMCPServer {
         const result = await this.tools.executeNewTool(name, args);
 
         if (result.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  success: true,
-                  data: result.data,
-                  message: `Tool ${name} executed successfully`
-                }, null, 2)
-              }
-            ]
-          };
+          // Production mode: Compressed response to save tokens
+          const isProduction = process.env.NODE_ENV === 'production';
+
+          if (isProduction) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result.data)
+                }
+              ]
+            };
+          } else {
+            // Development mode: Full debug info
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    success: true,
+                    data: result.data,
+                    message: `Tool ${name} executed successfully`
+                  }, null, 2)
+                }
+              ]
+            };
+          }
         } else {
           throw new McpError(
             ErrorCode.InternalError,

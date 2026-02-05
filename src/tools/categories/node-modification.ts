@@ -7,7 +7,10 @@ import {
   SetVisibleSchema,
   SetLockedSchema,
   SetNameSchema,
-  SetBlendModeSchema
+  SetBlendModeSchema,
+  // Batch modification schemas
+  BatchPositionUpdateSchema,
+  BatchStyleUpdateSchema
 } from '../schemas/index.js';
 
 // === B2: NODE MODIFICATION TOOLS ===
@@ -116,6 +119,34 @@ export const setBlendMode: McpTool = {
   }
 };
 
+// === BATCH MODIFICATION TOOLS ===
+
+export const batchPositionUpdate: McpTool = {
+  name: 'batchPositionUpdate',
+  description: 'Update positions of multiple nodes at once for faster layout changes',
+  inputSchema: BatchPositionUpdateSchema,
+  handler: async (params) => {
+    return {
+      category: 'node-modification',
+      operation: 'batchPositionUpdate',
+      parameters: params
+    };
+  }
+};
+
+export const batchStyleUpdate: McpTool = {
+  name: 'batchStyleUpdate',
+  description: 'Apply same style (fills, opacity) to multiple nodes simultaneously',
+  inputSchema: BatchStyleUpdateSchema,
+  handler: async (params) => {
+    return {
+      category: 'node-modification',
+      operation: 'batchStyleUpdate',
+      parameters: params
+    };
+  }
+};
+
 // Export all node modification tools
 export const nodeModificationTools = [
   setPosition,
@@ -125,5 +156,8 @@ export const nodeModificationTools = [
   setVisible,
   setLocked,
   setName,
-  setBlendMode
+  setBlendMode,
+  // Batch modification tools
+  batchPositionUpdate,
+  batchStyleUpdate
 ];

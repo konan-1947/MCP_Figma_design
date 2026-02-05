@@ -33,7 +33,7 @@ export class HttpClient {
   constructor(baseURL: string = 'http://localhost:8765', config: Partial<HttpClientConfig> = {}) {
     this.config = {
       baseURL,
-      timeout: 30000, // 30 seconds
+      timeout: 5000,  // 5 seconds for drawing operations
       retryAttempts: 3,
       retryDelay: 1000, // 1 second
       keepAliveTimeout: 30000, // 30 seconds
@@ -200,11 +200,12 @@ export class HttpClient {
         startTime: Date.now()
       };
 
-      // Setup timeout (30 seconds default)
+      // Dynamic timeout based on operation type
+      const timeoutMs = this.getTimeoutForOperation(command.category, command.operation);
       const timeout = setTimeout(() => {
         this.pendingCommands.delete(commandId);
-        reject(new Error(`Command ${command.category}.${command.operation} timeout after ${this.config.timeout}ms`));
-      }, this.config.timeout);
+        reject(new Error(`Command ${command.category}.${command.operation} timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
 
       // Store pending command
       this.pendingCommands.set(commandId, {
@@ -307,6 +308,22 @@ export class HttpClient {
 
   private generateCommandId(): string {
     return `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private getTimeoutForOperation(category: string, operation: string): number {
+    // Fast drawing operations - 5 seconds
+    const fastOperations = ['node-creation', 'node-modification', 'style-modification', 'text-operations'];
+    if (fastOperations.includes(category)) {
+      return 5000;
+    }
+
+    // File operations or complex API calls - 30 seconds
+    if (category === 'figma-api' && (operation.includes('File') || operation.includes('file'))) {
+      return 30000;
+    }
+
+    // Default timeout
+    return this.config.timeout;
   }
 
   public isConnectedToServer(): boolean {
