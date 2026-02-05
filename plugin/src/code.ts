@@ -474,6 +474,18 @@ class FigmaHttpClient {
       case 'createInstance':
         return await this.createInstance(params);
 
+      case 'createVector':
+        return await this.createVector(params);
+
+      case 'createBooleanOperation':
+        return await this.createBooleanOperation(params);
+
+      case 'createSlice':
+        return await this.createSlice(params);
+
+      case 'createComponentSet':
+        return await this.createComponentSet(params);
+
       default:
         throw new Error(`Unknown node creation operation: ${operation}`);
     }
@@ -1261,20 +1273,39 @@ class FigmaHttpClient {
       throw new Error(`Node ${nodeId} does not support corner radius`);
     }
 
-    if (typeof radius === 'number') {
-      (node as any).cornerRadius = radius;
-    } else {
-      // Individual corner radii
-      (node as any).topLeftRadius = radius.topLeft;
-      (node as any).topRightRadius = radius.topRight;
-      (node as any).bottomLeftRadius = radius.bottomLeft;
-      (node as any).bottomRightRadius = radius.bottomRight;
-    }
+    try {
+      if (typeof radius === 'number') {
+        // Uniform corner radius for all corners
+        if (radius < 0) {
+          throw new Error('Corner radius must be non-negative');
+        }
+        (node as any).cornerRadius = radius;
+      } else if (typeof radius === 'object' && radius !== null) {
+        // Individual corner radii
+        if (typeof radius.topLeft !== 'number' || radius.topLeft < 0 ||
+            typeof radius.topRight !== 'number' || radius.topRight < 0 ||
+            typeof radius.bottomLeft !== 'number' || radius.bottomLeft < 0 ||
+            typeof radius.bottomRight !== 'number' || radius.bottomRight < 0) {
+          throw new Error('All corner radius values must be non-negative numbers');
+        }
 
-    return {
-      nodeId,
-      radius
-    };
+        // Set individual corner properties
+        if ('topLeftRadius' in node) (node as any).topLeftRadius = radius.topLeft;
+        if ('topRightRadius' in node) (node as any).topRightRadius = radius.topRight;
+        if ('bottomLeftRadius' in node) (node as any).bottomLeftRadius = radius.bottomLeft;
+        if ('bottomRightRadius' in node) (node as any).bottomRightRadius = radius.bottomRight;
+      } else {
+        throw new Error('Invalid corner radius format: expected number or object with corner properties');
+      }
+
+      return {
+        nodeId,
+        radius,
+        success: true
+      };
+    } catch (error) {
+      throw new Error(`Failed to set corner radius: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private async setEffects(params: any): Promise<any> {
@@ -1310,15 +1341,35 @@ class FigmaHttpClient {
       throw new Error(`Node ${nodeId} does not support constraints`);
     }
 
-    (node as any).constraints = {
-      horizontal: constraints.horizontal,
-      vertical: constraints.vertical
-    };
+    // Validate constraint values
+    const validHorizontalConstraints = ['LEFT', 'RIGHT', 'CENTER', 'LEFT_RIGHT', 'SCALE'];
+    const validVerticalConstraints = ['TOP', 'BOTTOM', 'CENTER', 'TOP_BOTTOM', 'SCALE'];
 
-    return {
-      nodeId,
-      constraints
-    };
+    if (!validHorizontalConstraints.includes(constraints.horizontal)) {
+      throw new Error(`Invalid horizontal constraint: ${constraints.horizontal}. Must be one of: ${validHorizontalConstraints.join(', ')}`);
+    }
+
+    if (!validVerticalConstraints.includes(constraints.vertical)) {
+      throw new Error(`Invalid vertical constraint: ${constraints.vertical}. Must be one of: ${validVerticalConstraints.join(', ')}`);
+    }
+
+    try {
+      (node as any).constraints = {
+        horizontal: constraints.horizontal,
+        vertical: constraints.vertical
+      };
+
+      return {
+        nodeId,
+        constraints: {
+          horizontal: constraints.horizontal,
+          vertical: constraints.vertical
+        },
+        success: true
+      };
+    } catch (error) {
+      throw new Error(`Failed to set constraints: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private async setBlendModeStyle(params: any): Promise<any> {
@@ -1446,6 +1497,64 @@ class FigmaHttpClient {
     };
   }
 
+  // Helper function to map font weight to style name with multiple fallbacks
+  private mapFontWeightToStyle(fontWeight: number | string, currentStyle?: string, fontFamily?: string): string {
+    const weight = typeof fontWeight === 'string' ? parseInt(fontWeight) : fontWeight;
+
+    // Expanded weight to style mappings with more variations
+    const weightToStyle: Record<number, string[]> = {
+      100: ['Thin', 'Hairline', 'Ultra Light', 'UltraLight', '100', 'W100'],
+      200: ['Extra Light', 'ExtraLight', 'Ultra Light', 'UltraLight', '200', 'W200'],
+      300: ['Light', '300', 'W300'],
+      400: ['Regular', 'Normal', 'Book', '400', 'W400', 'Roman'],
+      500: ['Medium', '500', 'W500'],
+      600: ['Semi Bold', 'SemiBold', 'Demi Bold', 'DemiBold', '600', 'W600'],
+      700: ['Bold', '700', 'W700'],
+      800: ['Extra Bold', 'ExtraBold', 'Ultra Bold', 'UltraBold', '800', 'W800'],
+      900: ['Black', 'Heavy', 'Ultra', 'Fat', '900', 'W900']
+    };
+
+    // Check if current style contains italic/oblique
+    const isItalic = currentStyle && /italic|oblique/i.test(currentStyle);
+
+    // Get possible styles for this weight
+    const possibleStyles = weightToStyle[weight] || [];
+
+    // Try each possible style in order
+    for (const baseStyle of possibleStyles) {
+      const targetStyle = isItalic ? `${baseStyle} Italic` : baseStyle;
+      // This would be used to check font availability in real implementation
+      // For now, return the first option
+      return targetStyle;
+    }
+
+    // Enhanced fallback logic based on font family
+    if (fontFamily) {
+      // Special handling for common system fonts
+      if (fontFamily.toLowerCase().includes('inter')) {
+        if (weight <= 300) return isItalic ? 'Light Italic' : 'Light';
+        if (weight <= 500) return isItalic ? 'Italic' : 'Regular';
+        if (weight <= 600) return isItalic ? 'Medium Italic' : 'Medium';
+        if (weight <= 700) return isItalic ? 'Semi Bold Italic' : 'Semi Bold';
+        return isItalic ? 'Bold Italic' : 'Bold';
+      }
+
+      if (fontFamily.toLowerCase().includes('roboto')) {
+        if (weight <= 300) return isItalic ? 'Light Italic' : 'Light';
+        if (weight <= 500) return isItalic ? 'Italic' : 'Regular';
+        if (weight <= 600) return isItalic ? 'Medium Italic' : 'Medium';
+        return isItalic ? 'Bold Italic' : 'Bold';
+      }
+    }
+
+    // Generic fallback
+    if (weight < 400) return isItalic ? 'Light Italic' : 'Light';
+    if (weight === 400) return isItalic ? 'Italic' : 'Regular';
+    if (weight < 700) return isItalic ? 'Medium Italic' : 'Medium';
+    if (weight === 700) return isItalic ? 'Bold Italic' : 'Bold';
+    return isItalic ? 'Bold Italic' : 'Bold'; // Changed to Bold instead of Black for better compatibility
+  }
+
   private async setFontWeight(params: any): Promise<any> {
     const { nodeId, fontWeight, range } = params;
     const node = figma.getNodeById(nodeId);
@@ -1468,25 +1577,67 @@ class FigmaHttpClient {
       currentFontName = textNode.fontName as FontName;
     }
 
-    const newFontName: FontName = {
-      family: currentFontName.family,
-      style: fontWeight.toString()
-    };
+    // Map font weight to appropriate style name with enhanced fallback
+    const mappedStyle = this.mapFontWeightToStyle(fontWeight, currentFontName.style, currentFontName.family);
 
-    // Load font first
-    await figma.loadFontAsync(newFontName);
+    // Try multiple font style variations
+    const styleVariations = [
+      mappedStyle,
+      // Remove spaces and try different formats
+      mappedStyle.replace(/\s+/g, ''),
+      // Try with different casing
+      mappedStyle.toLowerCase(),
+      mappedStyle.toUpperCase(),
+      // Basic fallbacks
+      fontWeight >= 700 ? 'Bold' : 'Regular',
+      fontWeight >= 600 ? 'SemiBold' : 'Regular',
+      'Regular' // Ultimate fallback
+    ];
 
-    if (range) {
-      textNode.setRangeFontName(range.start, range.end, newFontName);
-    } else {
-      textNode.fontName = newFontName;
+    let successfulFont: FontName | null = null;
+    let usedStyle = '';
+
+    // Try each style variation until one works
+    for (const styleToTry of styleVariations) {
+      const testFontName: FontName = {
+        family: currentFontName.family,
+        style: styleToTry
+      };
+
+      try {
+        await figma.loadFontAsync(testFontName);
+        successfulFont = testFontName;
+        usedStyle = styleToTry;
+        break;
+      } catch (error) {
+        // Continue to next style variation
+        continue;
+      }
     }
 
-    return {
-      nodeId,
-      fontWeight,
-      fontName: newFontName
-    };
+    if (!successfulFont) {
+      throw new Error(`Could not load any font style for family "${currentFontName.family}" with weight ${fontWeight}. Font family may not support the requested weight.`);
+    }
+
+    // Apply the successful font
+    try {
+      if (range) {
+        textNode.setRangeFontName(range.start, range.end, successfulFont);
+      } else {
+        textNode.fontName = successfulFont;
+      }
+
+      return {
+        nodeId,
+        fontWeight,
+        fontName: successfulFont,
+        mappedStyle: usedStyle,
+        success: true,
+        warning: usedStyle !== mappedStyle ? `Used "${usedStyle}" instead of "${mappedStyle}" for weight ${fontWeight}` : undefined
+      };
+    } catch (error) {
+      throw new Error(`Failed to apply font weight: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private async setTextAlignHorizontal(params: any): Promise<any> {
@@ -1597,16 +1748,42 @@ class FigmaHttpClient {
 
     const textNode = node as TextNode;
 
-    if (range) {
-      textNode.setRangeLineHeight(range.start, range.end, lineHeight);
+    // Convert MCP schema format to Figma API format
+    let figmaLineHeight: LineHeight;
+
+    if (typeof lineHeight === 'number') {
+      // Direct number input - use as pixels
+      figmaLineHeight = { unit: 'PIXELS', value: lineHeight };
+    } else if (typeof lineHeight === 'object' && lineHeight !== null) {
+      if (lineHeight.unit === 'AUTO') {
+        // AUTO unit format for Figma API
+        figmaLineHeight = { unit: 'AUTO' } as LineHeight;
+      } else if (lineHeight.unit === 'PIXELS' && typeof lineHeight.value === 'number') {
+        figmaLineHeight = { unit: 'PIXELS', value: lineHeight.value };
+      } else if (lineHeight.unit === 'PERCENT' && typeof lineHeight.value === 'number') {
+        figmaLineHeight = { unit: 'PERCENT', value: lineHeight.value };
+      } else {
+        throw new Error(`Invalid line height format: ${JSON.stringify(lineHeight)}`);
+      }
     } else {
-      textNode.lineHeight = lineHeight;
+      throw new Error(`Invalid line height format: expected number or object with unit/value`);
     }
 
-    return {
-      nodeId,
-      lineHeight
-    };
+    try {
+      if (range) {
+        textNode.setRangeLineHeight(range.start, range.end, figmaLineHeight);
+      } else {
+        textNode.lineHeight = figmaLineHeight;
+      }
+
+      return {
+        nodeId,
+        lineHeight: figmaLineHeight,
+        success: true
+      };
+    } catch (error) {
+      throw new Error(`Failed to set line height: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private async setLetterSpacing(params: any): Promise<any> {
@@ -1623,16 +1800,39 @@ class FigmaHttpClient {
 
     const textNode = node as TextNode;
 
-    if (range) {
-      textNode.setRangeLetterSpacing(range.start, range.end, letterSpacing);
+    // Convert MCP schema format to Figma API format
+    let figmaLetterSpacing: LetterSpacing;
+
+    if (typeof letterSpacing === 'number') {
+      // Direct number input - use as pixels
+      figmaLetterSpacing = { unit: 'PIXELS', value: letterSpacing };
+    } else if (typeof letterSpacing === 'object' && letterSpacing !== null) {
+      if (letterSpacing.unit === 'PIXELS' && typeof letterSpacing.value === 'number') {
+        figmaLetterSpacing = { unit: 'PIXELS', value: letterSpacing.value };
+      } else if (letterSpacing.unit === 'PERCENT' && typeof letterSpacing.value === 'number') {
+        figmaLetterSpacing = { unit: 'PERCENT', value: letterSpacing.value };
+      } else {
+        throw new Error(`Invalid letter spacing format: ${JSON.stringify(letterSpacing)}`);
+      }
     } else {
-      textNode.letterSpacing = letterSpacing;
+      throw new Error(`Invalid letter spacing format: expected number or object with unit/value`);
     }
 
-    return {
-      nodeId,
-      letterSpacing
-    };
+    try {
+      if (range) {
+        textNode.setRangeLetterSpacing(range.start, range.end, figmaLetterSpacing);
+      } else {
+        textNode.letterSpacing = figmaLetterSpacing;
+      }
+
+      return {
+        nodeId,
+        letterSpacing: figmaLetterSpacing,
+        success: true
+      };
+    } catch (error) {
+      throw new Error(`Failed to set letter spacing: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private async setParagraphSpacing(params: any): Promise<any> {
@@ -1871,6 +2071,195 @@ class FigmaHttpClient {
       g: parseInt(result[2], 16) / 255,
       b: parseInt(result[3], 16) / 255
     } : null;
+  }
+
+  private async createVector(params: any): Promise<any> {
+    const { vectorPaths, x = 0, y = 0, name = 'Vector' } = params;
+
+    if (!vectorPaths || !Array.isArray(vectorPaths) || vectorPaths.length === 0) {
+      throw new Error('Vector paths are required and must be a non-empty array');
+    }
+
+    try {
+      // Create vector node
+      const vector = figma.createVector();
+      vector.name = name;
+      vector.x = x;
+      vector.y = y;
+
+      // Process vector paths
+      const figmaVectorPaths: VectorPath[] = vectorPaths.map((path: any) => {
+        if (!path.data || typeof path.data !== 'string') {
+          throw new Error('Vector path data must be a valid SVG path string');
+        }
+
+        // Validate winding rule
+        const windingRule = path.windingRule || 'NONZERO';
+        if (!['EVENODD', 'NONZERO'].includes(windingRule)) {
+          throw new Error(`Invalid winding rule: ${windingRule}`);
+        }
+
+        // Basic SVG path validation
+        if (!path.data.trim().match(/^[MmLlHhVvCcSsQqTtAaZz0-9\s,.-]+$/)) {
+          throw new Error('Invalid SVG path data format');
+        }
+
+        return {
+          windingRule: windingRule as 'EVENODD' | 'NONZERO',
+          data: path.data.trim()
+        };
+      });
+
+      // Set vector paths
+      vector.vectorPaths = figmaVectorPaths;
+
+      figma.currentPage.appendChild(vector);
+
+      return {
+        id: vector.id,
+        name: vector.name,
+        type: vector.type,
+        x: vector.x,
+        y: vector.y,
+        vectorPaths: figmaVectorPaths,
+        success: true
+      };
+    } catch (error) {
+      throw new Error(`Failed to create vector: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private async createBooleanOperation(params: any): Promise<any> {
+    const { booleanOperation, children, x = 0, y = 0, name = 'Boolean Operation' } = params;
+
+    if (!booleanOperation || !['UNION', 'INTERSECT', 'SUBTRACT', 'EXCLUDE'].includes(booleanOperation)) {
+      throw new Error(`Invalid boolean operation: ${booleanOperation}`);
+    }
+
+    if (!children || !Array.isArray(children) || children.length < 2) {
+      throw new Error('Boolean operation requires at least 2 child nodes');
+    }
+
+    try {
+      // Get child nodes and validate they exist
+      const childNodes: SceneNode[] = [];
+      for (const childId of children) {
+        const childNode = figma.getNodeById(childId);
+        if (!childNode) {
+          throw new Error(`Child node not found: ${childId}`);
+        }
+        if (!('parent' in childNode)) {
+          throw new Error(`Node ${childId} is not a valid scene node for boolean operations`);
+        }
+        childNodes.push(childNode as SceneNode);
+      }
+
+      // Create boolean operation
+      const booleanOp = figma.createBooleanOperation();
+      booleanOp.name = name;
+      booleanOp.x = x;
+      booleanOp.y = y;
+      booleanOp.booleanOperation = booleanOperation as 'UNION' | 'INTERSECT' | 'SUBTRACT' | 'EXCLUDE';
+
+      // Add child nodes to boolean operation
+      for (const childNode of childNodes) {
+        // Remove from current parent and add to boolean operation
+        if (childNode.parent) {
+          childNode.remove();
+        }
+        booleanOp.appendChild(childNode);
+      }
+
+      figma.currentPage.appendChild(booleanOp);
+
+      return {
+        id: booleanOp.id,
+        name: booleanOp.name,
+        type: booleanOp.type,
+        booleanOperation: booleanOp.booleanOperation,
+        x: booleanOp.x,
+        y: booleanOp.y,
+        childrenCount: booleanOp.children.length,
+        success: true
+      };
+    } catch (error) {
+      throw new Error(`Failed to create boolean operation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private async createSlice(params: any): Promise<any> {
+    const { width = 100, height = 100, x = 0, y = 0, name = 'Slice' } = params;
+
+    try {
+      const slice = figma.createSlice();
+      slice.name = name;
+      slice.x = x;
+      slice.y = y;
+      slice.resize(width, height);
+
+      figma.currentPage.appendChild(slice);
+
+      return {
+        id: slice.id,
+        name: slice.name,
+        type: slice.type,
+        x: slice.x,
+        y: slice.y,
+        width: slice.width,
+        height: slice.height,
+        success: true
+      };
+    } catch (error) {
+      throw new Error(`Failed to create slice: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private async createComponentSet(params: any): Promise<any> {
+    const { name = 'Component Set', description, components = [], x = 0, y = 0 } = params;
+
+    if (!components || components.length < 2) {
+      throw new Error('Component set requires at least 2 existing components to combine as variants');
+    }
+
+    try {
+      // Get component nodes and validate they exist
+      const componentNodes: ComponentNode[] = [];
+      for (const componentId of components) {
+        const component = figma.getNodeById(componentId);
+        if (!component) {
+          throw new Error(`Component not found: ${componentId}`);
+        }
+        if (component.type !== 'COMPONENT') {
+          throw new Error(`Node ${componentId} is not a component`);
+        }
+        componentNodes.push(component as ComponentNode);
+      }
+
+      // Use combineAsVariants to create component set
+      const componentSet = figma.combineAsVariants(componentNodes, figma.currentPage);
+
+      // Apply custom properties
+      componentSet.name = name;
+      componentSet.x = x;
+      componentSet.y = y;
+
+      if (description) {
+        componentSet.description = description;
+      }
+
+      return {
+        id: componentSet.id,
+        name: componentSet.name,
+        type: componentSet.type,
+        description: componentSet.description,
+        x: componentSet.x,
+        y: componentSet.y,
+        variantsCount: componentSet.children.length,
+        success: true
+      };
+    } catch (error) {
+      throw new Error(`Failed to create component set: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private async sendResponse(response: FigmaResponse): Promise<void> {

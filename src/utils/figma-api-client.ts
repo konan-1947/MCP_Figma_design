@@ -87,8 +87,15 @@ export class FigmaApiClient {
     console.error('[Figma API Client] 🗑️ Access token cleared');
   }
 
-  public hasAccessToken(): boolean {
-    return !!this.accessToken;
+  public async hasAccessToken(): Promise<boolean> {
+    if (this.accessToken) return true;
+
+    try {
+      const response = await axios.get(`${this.httpBridgeUrl}/figma/token/get`);
+      return !!response.data.hasToken;
+    } catch (error) {
+      return false;
+    }
   }
 
   // Get token from HTTP bridge if not set locally
@@ -238,6 +245,8 @@ export class FigmaApiClient {
     geometry?: 'paths' | 'bounds';
     plugin_data?: string;
   } = {}): Promise<FigmaApiResponse> {
+    const tokenError = await this.ensureToken();
+    if (tokenError) return tokenError;
 
     const params = new URLSearchParams();
     params.append('ids', nodeIds.join(','));
@@ -263,16 +272,8 @@ export class FigmaApiClient {
     use_absolute_bounds?: boolean;
     version?: string;
   }): Promise<FigmaApiResponse> {
-    if (!this.accessToken) {
-      return {
-        error: {
-          status: 401,
-          err: 'MISSING_TOKEN',
-          message: 'Access token is required for Figma API calls'
-        },
-        status: 401
-      };
-    }
+    const tokenError = await this.ensureToken();
+    if (tokenError) return tokenError;
 
     const params = new URLSearchParams();
     params.append('ids', options.ids.join(','));
@@ -479,16 +480,8 @@ export class FigmaApiClient {
 
   // User and Team Operations
   public async getMe(): Promise<FigmaApiResponse> {
-    if (!this.accessToken) {
-      return {
-        error: {
-          status: 401,
-          err: 'MISSING_TOKEN',
-          message: 'Access token is required for Figma API calls'
-        },
-        status: 401
-      };
-    }
+    const tokenError = await this.ensureToken();
+    if (tokenError) return tokenError;
 
     return this.retryRequest(
       () => this.client.get('/me'),
@@ -541,12 +534,12 @@ export class FigmaApiClient {
   }
 
   // Utility methods
-  public getConnectionInfo(): {
+  public async getConnectionInfo(): Promise<{
     hasToken: boolean;
     baseURL: string;
-  } {
+  }> {
     return {
-      hasToken: this.hasAccessToken(),
+      hasToken: await this.hasAccessToken(),
       baseURL: this.client.defaults.baseURL || 'https://api.figma.com/v1'
     };
   }

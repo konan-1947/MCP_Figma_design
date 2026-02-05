@@ -44,7 +44,9 @@
       "mcp__figma-desktop__get_metadata",
       "mcp__figma-desktop__get_screenshot",
       "Bash(npm install copy-webpack-plugin --save-dev)",
-      "Bash(dir dist)"
+      "Bash(dir dist)",
+      "Bash(timeout 3)",
+      "Bash(ping -n 3 127.0.0.)"
     ]
   }
 }
