@@ -482,7 +482,7 @@ export const validateToken: McpTool = {
       return { error: 'Figma API client not initialized' };
     }
 
-    if (!figmaApiClient.hasAccessToken()) {
+    if (!(await figmaApiClient.hasAccessToken())) {
       return {
         data: {
           valid: false,

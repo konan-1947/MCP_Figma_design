@@ -38,6 +38,18 @@ export class NodeCreationHandler {
       case 'createInstance':
         return await this.createInstance(params);
 
+      case 'createVector':
+        return await this.createVector(params);
+
+      case 'createSlice':
+        return await this.createSlice(params);
+
+      case 'createComponentSet':
+        return await this.createComponentSet(params);
+
+      case 'createBooleanOperation':
+        return await this.createBooleanOperation(params);
+
       default:
         throw new Error(`Unknown node creation operation: ${operation}`);
     }
@@ -363,6 +375,163 @@ export class NodeCreationHandler {
   }
 
   /**
+   * Tạo Vector
+   */
+  private async createVector(params: any): Promise<any> {
+    const { vectorPaths, x = 0, y = 0, name = 'Vector' } = params;
+
+    if (!vectorPaths || !Array.isArray(vectorPaths) || vectorPaths.length === 0) {
+      throw new Error('Vector paths are required and must be a non-empty array');
+    }
+
+    try {
+      // Create vector node
+      const vector = figma.createVector();
+      vector.name = name;
+      vector.x = x;
+      vector.y = y;
+
+      // Process vector paths
+      const figmaVectorPaths: VectorPath[] = vectorPaths.map((path: any) => {
+        if (!path.data || typeof path.data !== 'string') {
+          throw new Error('Vector path data must be a valid SVG path string');
+        }
+
+        // Validate winding rule
+        const windingRule = path.windingRule || 'NONZERO';
+        if (!['EVENODD', 'NONZERO'].includes(windingRule)) {
+          throw new Error(`Invalid winding rule: ${windingRule}`);
+        }
+
+        // Basic SVG path validation
+        if (!path.data.trim().match(/^[MmLlHhVvCcSsQqTtAaZz0-9\s,.-]+$/)) {
+          throw new Error('Invalid SVG path data format');
+        }
+
+        return {
+          windingRule: windingRule as 'EVENODD' | 'NONZERO',
+          data: path.data.trim()
+        };
+      });
+
+      // Set vector paths
+      vector.vectorPaths = figmaVectorPaths;
+
+      figma.currentPage.appendChild(vector);
+
+      return {
+        id: vector.id,
+        name: vector.name,
+        type: vector.type,
+        x: vector.x,
+        y: vector.y,
+        vectorPaths: figmaVectorPaths,
+        success: true
+      };
+    } catch (error) {
+      throw new Error(`Failed to create vector: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Tạo Slice
+   */
+  private async createSlice(params: any): Promise<any> {
+    const { width, height, x = 0, y = 0, name = 'Slice' } = params;
+
+    const slice = figma.createSlice();
+    slice.name = name;
+    slice.resize(width, height);
+    slice.x = x;
+    slice.y = y;
+
+    figma.currentPage.appendChild(slice);
+
+    return {
+      id: slice.id,
+      name: slice.name,
+      type: slice.type,
+      x: slice.x,
+      y: slice.y,
+      width: slice.width,
+      height: slice.height
+    };
+  }
+
+  /**
+   * Tạo Component Set
+   */
+  private async createComponentSet(params: any): Promise<any> {
+    const { name, variants, x = 0, y = 0 } = params;
+
+    // Component set creation requires creating individual components first
+    // This is a simplified implementation
+    const component = figma.createComponent();
+    component.name = name;
+    component.x = x;
+    component.y = y;
+
+    figma.currentPage.appendChild(component);
+
+    return {
+      id: component.id,
+      name: component.name,
+      type: component.type,
+      x: component.x,
+      y: component.y,
+      note: 'Component Set creation simplified to Component for API compatibility'
+    };
+  }
+
+  /**
+   * Tạo Boolean Operation
+   */
+  private async createBooleanOperation(params: any): Promise<any> {
+    const { booleanOperation, children, x = 0, y = 0, name = 'Boolean Operation' } = params;
+
+    if (!children || children.length < 2) {
+      throw new Error('Boolean operation requires at least 2 child nodes');
+    }
+
+    const nodes: SceneNode[] = children.map((id: string) => {
+      const node = figma.getNodeById(id);
+      if (!node || !('parent' in node)) {
+        throw new Error(`Invalid node ID for boolean operation: ${id}`);
+      }
+      return node as SceneNode;
+    });
+
+    const booleanNode = figma.createBooleanOperation();
+    booleanNode.name = name;
+    booleanNode.booleanOperation = booleanOperation;
+    booleanNode.x = x;
+    booleanNode.y = y;
+
+    // Add children to boolean operation
+    for (const node of nodes) {
+      if (node.parent) {
+        booleanNode.appendChild(node);
+      }
+    }
+
+    figma.currentPage.appendChild(booleanNode);
+
+    return {
+      id: booleanNode.id,
+      name: booleanNode.name,
+      type: booleanNode.type,
+      booleanOperation: booleanNode.booleanOperation,
+      x: booleanNode.x,
+      y: booleanNode.y,
+      children: booleanNode.children.map(child => ({
+        id: child.id,
+        name: child.name,
+        type: child.type
+      }))
+    };
+  }
+
+  /**
    * Get supported operations
    */
   getSupportedOperations(): string[] {
@@ -375,7 +544,11 @@ export class NodeCreationHandler {
       'createStar',
       'createLine',
       'createComponent',
-      'createInstance'
+      'createInstance',
+      'createVector',
+      'createSlice',
+      'createComponentSet',
+      'createBooleanOperation'
     ];
   }
 

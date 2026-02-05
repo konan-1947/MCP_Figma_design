@@ -283,8 +283,8 @@ export class FigmaTools {
     this.figmaApiClient.clearAccessToken();
   }
 
-  public hasFigmaAccessToken(): boolean {
-    return this.figmaApiClient.hasAccessToken();
+  public async hasFigmaAccessToken(): Promise<boolean> {
+    return await this.figmaApiClient.hasAccessToken();
   }
 
   // === REST API CONVENIENCE METHODS ===
