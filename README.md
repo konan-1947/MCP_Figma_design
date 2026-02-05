@@ -5,6 +5,10 @@ Hệ thống MCP Server cho phép Claude điều khiển Figma Desktop để t�
 <img width="1918" height="1005" alt="image" src="https://github.com/user-attachments/assets/e6f8dee5-a880-436a-a437-ad0258ea5670" />
 
 *Hiện tại đang còn dừng lại ở MVP. Các chức năng còn thiếu (và chắc là ko làm) là fix lại phần đồng bộ Figma Token (hiện tại điền token vào chưa nhận từ UI Figma Plugin UI mà phải paste thẳng vào Claude Desktop), một số tool về vector chưa được đầy đủ, và ngốn token Claude kinh khủng, có lẽ phải sử dụng AI khác hoặc cách xây dựng UI khác.*
+
+1:02AM 6/2/2026: thỉnh thoảng claude trêu đùa t bằng cách cho thiếu tham số trong tools. hôm nay cập nhật tools vẽ nhiều shape 1 lúc. nhưng vẫn đang bị giới hạn vì làm cái này chỉ được vẽ hình đơn giản, ko vẽ được giao diện đẹp. 
+
+
 ## Chức năng
 
 - Tự động tạo UI components thông qua Claude (text, buttons, cards, forms)
