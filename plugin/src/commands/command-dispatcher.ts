@@ -10,18 +10,21 @@ import { NodeCreationHandler } from './handlers/node-creation-handler';
 import { NodeModificationHandler } from './handlers/node-modification-handler';
 import { StyleModificationHandler } from './handlers/style-modification-handler';
 import { TextOperationsHandler } from './handlers/text-operations-handler';
+import { LayoutOperationsHandler } from './handlers/layout-operations-handler';
 
 export class CommandDispatcher {
   private nodeCreationHandler: NodeCreationHandler;
   private nodeModificationHandler: NodeModificationHandler;
   private styleModificationHandler: StyleModificationHandler;
   private textOperationsHandler: TextOperationsHandler;
+  private layoutOperationsHandler: LayoutOperationsHandler;
 
   constructor() {
     this.nodeCreationHandler = new NodeCreationHandler();
     this.nodeModificationHandler = new NodeModificationHandler();
     this.styleModificationHandler = new StyleModificationHandler();
     this.textOperationsHandler = new TextOperationsHandler();
+    this.layoutOperationsHandler = new LayoutOperationsHandler();
   }
 
   /**
@@ -106,11 +109,12 @@ export class CommandDispatcher {
   }
 
   /**
-   * Placeholder handlers for unimplemented categories
-   * Từ lines 553-575
+   * Handle layout operations
    */
   private async handleLayoutOperations(operation: string, params: any): Promise<any> {
-    throw new Error(`Layout operations not implemented yet: ${operation}`);
+    // Extract action from params (used by layout tools)
+    const action = params.action || operation;
+    return await this.layoutOperationsHandler.handle(action, params);
   }
 
   private async handleComponentOperations(operation: string, params: any): Promise<any> {

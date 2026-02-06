@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import ChatBox from './components/ChatBox';
-import DesignPreview from './components/DesignPreview';
-import ActionLog from './components/ActionLog';
 import './App.css';
 
 interface Message {
@@ -39,7 +37,7 @@ function App() {
   const handleSendMessage = async (text: string) => {
     if (!sessionId || !text.trim()) return;
 
-    // Add user message immediately
+    // Add user message
     const userMessage: Message = {
       role: 'user',
       content: text,
@@ -78,21 +76,9 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <div className="header-content">
-          <div className="header-title">
-            <h1>🎨 Figma Design Assistant</h1>
-            <p>Design with Gemini AI</p>
-          </div>
-          <div className="header-status">
-            {sessionId ? (
-              <span className="status-badge success">
-                ✓ Connected - {sessionId.substring(0, 8)}...
-              </span>
-            ) : (
-              <span className="status-badge loading">⏳ Connecting...</span>
-            )}
-          </div>
-        </div>
+        <h1>🎨 Figma Design Assistant</h1>
+        <p>Design with Gemini AI</p>
+        {sessionId && <span className="status">✓ Connected</span>}
       </header>
 
       {error && (
@@ -103,29 +89,13 @@ function App() {
       )}
 
       <main className="app-main">
-        <div className="chat-section">
-          <ChatBox 
-            messages={messages}
-            loading={loading}
-            onSend={handleSendMessage}
-            disabled={!sessionId || loading}
-          />
-        </div>
-
-        <div className="preview-section">
-          <DesignPreview sessionId={sessionId} />
-          {messages.length > 0 && (
-            <ActionLog 
-              actions={messages[messages.length - 1]?.actions}
-            />
-          )}
-        </div>
+        <ChatBox 
+          messages={messages}
+          loading={loading}
+          onSend={handleSendMessage}
+          disabled={!sessionId || loading}
+        />
       </main>
-
-      <footer className="app-footer">
-        <p>Session: {sessionId?.substring(0, 12)}...</p>
-        <p className="footer-note">Backend: http://localhost:8765</p>
-      </footer>
     </div>
   );
 }

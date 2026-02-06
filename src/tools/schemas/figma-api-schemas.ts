@@ -140,6 +140,33 @@ export const ExtractFileKeySchema = z.object({
   url: z.string().url().describe('Figma file URL to extract key from')
 }).describe('Extract file key from Figma URL');
 
+// === DESIGN QUALITY DIAGNOSTIC SCHEMAS ===
+
+export const AnalyzeLayoutQualitySchema = z.object({
+  fileKey: FileKeySchema,
+  includeDetails: z.boolean().optional().default(true).describe('Include detailed analysis và recommendations')
+}).describe('Analyze overall layout quality của Figma design với positioning, spacing, và grid compliance metrics');
+
+export const DetectPositioningIssuesSchema = z.object({
+  fileKey: FileKeySchema,
+  focusArea: z.enum(['origin_clustering', 'overlaps', 'spacing', 'all']).optional().default('all').describe('Focus vào specific positioning issues'),
+  severityThreshold: z.enum(['low', 'medium', 'high', 'critical']).optional().default('medium').describe('Minimum severity level để include trong results')
+}).describe('Detect specific positioning issues như overlapping elements, origin clustering, poor spacing');
+
+export const GenerateSpacingReportSchema = z.object({
+  fileKey: FileKeySchema,
+  gridSize: z.number().min(1).max(32).optional().default(8).describe('Design grid size (px) để check compliance'),
+  minSpacing: z.number().min(1).max(100).optional().default(16).describe('Minimum recommended spacing (px)')
+}).describe('Generate detailed spacing analysis report với distribution metrics và grid compliance');
+
+export const CheckDesignSystemComplianceSchema = z.object({
+  fileKey: FileKeySchema,
+  gridSize: z.number().min(1).max(32).optional().default(8).describe('Design system grid size (px)'),
+  checkSpacing: z.boolean().optional().default(true).describe('Check spacing consistency'),
+  checkAlignment: z.boolean().optional().default(true).describe('Check element alignment'),
+  generateReport: z.boolean().optional().default(true).describe('Generate comprehensive compliance report')
+}).describe('Check design system compliance với grid, spacing, và alignment standards');
+
 // Utility function to extract file key from Figma URL
 export function extractFileKey(url: string): string | null {
   const patterns = [
@@ -185,3 +212,9 @@ export type SetTokenInput = z.infer<typeof SetTokenSchema>;
 export type ClearTokenInput = z.infer<typeof ClearTokenSchema>;
 export type ValidateTokenInput = z.infer<typeof ValidateTokenSchema>;
 export type ExtractFileKeyInput = z.infer<typeof ExtractFileKeySchema>;
+
+// Design Quality Diagnostic Types
+export type AnalyzeLayoutQualityInput = z.infer<typeof AnalyzeLayoutQualitySchema>;
+export type DetectPositioningIssuesInput = z.infer<typeof DetectPositioningIssuesSchema>;
+export type GenerateSpacingReportInput = z.infer<typeof GenerateSpacingReportSchema>;
+export type CheckDesignSystemComplianceInput = z.infer<typeof CheckDesignSystemComplianceSchema>;

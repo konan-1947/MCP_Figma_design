@@ -11,6 +11,20 @@ import FigmaTools from '../tools/index.js';
 import HttpClient from '../utils/http-client.js';
 import { ChatRequest, ChatResponse, SessionCreateResponse } from './types.js';
 
+// Helper function to sort actions by dependency
+function sortActionsByDependency(actions: any[]): any[] {
+  const creationTools = ['createFrame', 'createRectangle', 'createEllipse', 'createText'];
+  const modificationTools = ['setPosition', 'resize', 'setOpacity', 'setVisible', 'setLocked', 'setName', 'setBlendMode', 'setRotation'];
+  
+  // Separate actions by type
+  const creations = actions.filter(a => creationTools.includes(a.tool));
+  const modifications = actions.filter(a => modificationTools.includes(a.tool));
+  const others = actions.filter(a => !creationTools.includes(a.tool) && !modificationTools.includes(a.tool));
+  
+  // Return in order: creations → modifications → others
+  return [...creations, ...modifications, ...others];
+}
+
 export function setupGeminiRoutes(
   app: Express,
   geminiClient: GeminiClient,
@@ -180,7 +194,10 @@ export function setupGeminiRoutes(
       if (geminiResponse.actions && geminiResponse.actions.length > 0) {
         console.log('[GeminiRoutes] Executing', geminiResponse.actions.length, 'actions...');
 
-        for (const action of geminiResponse.actions) {
+        // Sort actions: creation first, then modifications
+        const sortedActions = sortActionsByDependency(geminiResponse.actions);
+
+        for (const action of sortedActions) {
           try {
             const result = await figmaTools.executeNewTool(action.tool, action.params);
             executedResponses.push({

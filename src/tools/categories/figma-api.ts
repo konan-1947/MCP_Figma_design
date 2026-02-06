@@ -19,8 +19,14 @@ import {
   ClearTokenSchema,
   ValidateTokenSchema,
   ExtractFileKeySchema,
-  extractFileKey
+  extractFileKey,
+  // New diagnostic schemas
+  AnalyzeLayoutQualitySchema,
+  DetectPositioningIssuesSchema,
+  GenerateSpacingReportSchema,
+  CheckDesignSystemComplianceSchema
 } from '../schemas/figma-api-schemas.js';
+import { DesignQualityAnalyzer } from '../../utils/design-quality-analyzer.js';
 
 // Global API client instance (will be injected)
 let figmaApiClient: any = null;
@@ -513,6 +519,303 @@ export const validateToken: McpTool = {
   }
 };
 
+// === DESIGN QUALITY DIAGNOSTIC TOOLS ===
+
+export const analyzeLayoutQuality: McpTool = {
+  name: 'analyzeLayoutQuality',
+  description: 'Analyze overall layout quality của Figma design với comprehensive metrics cho positioning, spacing, overlaps, và grid compliance',
+  inputSchema: AnalyzeLayoutQualitySchema,
+  handler: async (params): Promise<ApiToolResult> => {
+    if (!figmaApiClient) {
+      return { error: 'Figma API client not initialized' };
+    }
+
+    try {
+      // Get file data với full node hierarchy
+      const response = await figmaApiClient.getFile(params.fileKey, {
+        depth: 2, // Get reasonable depth for analysis
+        geometry: 'bounds' // Include bounding box data
+      });
+
+      if (response.error) {
+        return {
+          error: `Figma API Error: ${response.error.message || response.error.err}`,
+          details: response.error
+        };
+      }
+
+      // Analyze design quality
+      const qualityReport = DesignQualityAnalyzer.analyzeFile({
+        ...response.data,
+        fileKey: params.fileKey
+      });
+
+      const result: any = {
+        fileKey: params.fileKey,
+        fileName: response.data.name,
+        overallScore: qualityReport.metrics.layoutScore,
+        metrics: qualityReport.metrics,
+        summary: {
+          status: qualityReport.metrics.layoutScore >= 80 ? 'excellent' :
+                  qualityReport.metrics.layoutScore >= 60 ? 'good' :
+                  qualityReport.metrics.layoutScore >= 40 ? 'needs_improvement' : 'poor',
+          criticalIssues: qualityReport.issues.filter(i => i.severity === 'critical').length,
+          totalIssues: qualityReport.issues.length
+        }
+      };
+
+      if (params.includeDetails) {
+        result.detailedAnalysis = {
+          issues: qualityReport.issues,
+          recommendations: qualityReport.recommendations,
+          canvasUtilization: qualityReport.canvasUtilization
+        };
+      }
+
+      return { data: result };
+
+    } catch (error) {
+      return {
+        error: `Failed to analyze layout quality: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+};
+
+export const detectPositioningIssues: McpTool = {
+  name: 'detectPositioningIssues',
+  description: 'Detect specific positioning problems như overlapping elements, origin clustering, poor spacing với detailed issue reports',
+  inputSchema: DetectPositioningIssuesSchema,
+  handler: async (params): Promise<ApiToolResult> => {
+    if (!figmaApiClient) {
+      return { error: 'Figma API client not initialized' };
+    }
+
+    try {
+      const response = await figmaApiClient.getFile(params.fileKey, {
+        depth: 2,
+        geometry: 'bounds'
+      });
+
+      if (response.error) {
+        return {
+          error: `Figma API Error: ${response.error.message || response.error.err}`,
+          details: response.error
+        };
+      }
+
+      const qualityReport = DesignQualityAnalyzer.analyzeFile({
+        ...response.data,
+        fileKey: params.fileKey
+      });
+
+      // Filter issues based on focus area và severity
+      let filteredIssues = qualityReport.issues;
+
+      if (params.focusArea && params.focusArea !== 'all') {
+        const focusMap = {
+          'origin_clustering': 'origin_cluster',
+          'overlaps': 'overlap',
+          'spacing': 'poor_spacing'
+        };
+        filteredIssues = filteredIssues.filter(issue => issue.type === focusMap[params.focusArea as keyof typeof focusMap]);
+      }
+
+      // Filter by severity
+      const severityLevels = ['low', 'medium', 'high', 'critical'];
+      const minSeverityIndex = severityLevels.indexOf(params.severityThreshold || 'medium');
+      filteredIssues = filteredIssues.filter(issue => {
+        const issueSeverityIndex = severityLevels.indexOf(issue.severity);
+        return issueSeverityIndex >= minSeverityIndex;
+      });
+
+      return {
+        data: {
+          fileKey: params.fileKey,
+          focusArea: params.focusArea || 'all',
+          severityThreshold: params.severityThreshold || 'medium',
+          totalIssuesFound: filteredIssues.length,
+          issueBreakdown: {
+            critical: filteredIssues.filter(i => i.severity === 'critical').length,
+            high: filteredIssues.filter(i => i.severity === 'high').length,
+            medium: filteredIssues.filter(i => i.severity === 'medium').length,
+            low: filteredIssues.filter(i => i.severity === 'low').length
+          },
+          issues: filteredIssues,
+          quickFixes: filteredIssues
+            .filter(issue => issue.recommendedFix)
+            .map(issue => ({
+              type: issue.type,
+              fix: issue.recommendedFix
+            }))
+        }
+      };
+
+    } catch (error) {
+      return {
+        error: `Failed to detect positioning issues: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+};
+
+export const generateSpacingReport: McpTool = {
+  name: 'generateSpacingReport',
+  description: 'Generate detailed spacing analysis với distribution metrics, grid compliance, và visual hierarchy assessment',
+  inputSchema: GenerateSpacingReportSchema,
+  handler: async (params): Promise<ApiToolResult> => {
+    if (!figmaApiClient) {
+      return { error: 'Figma API client not initialized' };
+    }
+
+    try {
+      const response = await figmaApiClient.getFile(params.fileKey, {
+        depth: 2,
+        geometry: 'bounds'
+      });
+
+      if (response.error) {
+        return {
+          error: `Figma API Error: ${response.error.message || response.error.err}`,
+          details: response.error
+        };
+      }
+
+      const qualityReport = DesignQualityAnalyzer.analyzeFile({
+        ...response.data,
+        fileKey: params.fileKey
+      });
+
+      // Extract spacing-specific data
+      const spacingIssues = qualityReport.issues.filter(issue =>
+        issue.type === 'poor_spacing' || issue.type === 'grid_violation'
+      );
+
+      return {
+        data: {
+          fileKey: params.fileKey,
+          gridSize: params.gridSize || 8,
+          minSpacing: params.minSpacing || 16,
+          metrics: {
+            averageSpacing: qualityReport.metrics.averageSpacing,
+            gridCompliance: qualityReport.metrics.gridCompliance,
+            totalElements: qualityReport.metrics.totalElements
+          },
+          analysis: {
+            spacingDistribution: {
+              belowMinimum: qualityReport.issues.filter(i => i.type === 'poor_spacing').length,
+              gridCompliant: Math.round((qualityReport.metrics.gridCompliance / 100) * qualityReport.metrics.totalElements),
+              needsImprovement: spacingIssues.length
+            },
+            recommendations: qualityReport.recommendations.filter(rec =>
+              rec.includes('spacing') || rec.includes('grid')
+            )
+          },
+          spacingIssues,
+          designSystemSuggestions: [
+            `Set minimum spacing tới ${params.minSpacing || 16}px for consistency`,
+            `Use ${params.gridSize || 8}px grid system cho alignment`,
+            'Implement auto-layout containers cho consistent spacing',
+            'Define spacing tokens (xs: 4px, sm: 8px, md: 16px, lg: 24px, xl: 32px)'
+          ]
+        }
+      };
+
+    } catch (error) {
+      return {
+        error: `Failed to generate spacing report: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+};
+
+export const checkDesignSystemCompliance: McpTool = {
+  name: 'checkDesignSystemCompliance',
+  description: 'Check design system compliance với grid standards, spacing consistency, và alignment principles',
+  inputSchema: CheckDesignSystemComplianceSchema,
+  handler: async (params): Promise<ApiToolResult> => {
+    if (!figmaApiClient) {
+      return { error: 'Figma API client not initialized' };
+    }
+
+    try {
+      const response = await figmaApiClient.getFile(params.fileKey, {
+        depth: 2,
+        geometry: 'bounds'
+      });
+
+      if (response.error) {
+        return {
+          error: `Figma API Error: ${response.error.message || response.error.err}`,
+          details: response.error
+        };
+      }
+
+      const qualityReport = DesignQualityAnalyzer.analyzeFile({
+        ...response.data,
+        fileKey: params.fileKey
+      });
+
+      const compliance = {
+        overall: qualityReport.metrics.layoutScore,
+        grid: qualityReport.metrics.gridCompliance,
+        spacing: params.checkSpacing ?
+          100 - ((qualityReport.issues.filter(i => i.type === 'poor_spacing').length / Math.max(1, qualityReport.metrics.totalElements)) * 100) :
+          null,
+        positioning: 100 - ((qualityReport.metrics.elementsAtOrigin / Math.max(1, qualityReport.metrics.totalElements)) * 100),
+        overlap: 100 - ((qualityReport.metrics.overlappingElements / Math.max(1, qualityReport.metrics.totalElements)) * 100)
+      };
+
+      const result: any = {
+        fileKey: params.fileKey,
+        gridSize: params.gridSize || 8,
+        complianceScore: {
+          overall: Math.round(compliance.overall),
+          breakdown: {
+            gridCompliance: Math.round(compliance.grid),
+            positioningQuality: Math.round(compliance.positioning),
+            overlapFree: Math.round(compliance.overlap)
+          }
+        },
+        violations: {
+          gridViolations: qualityReport.issues.filter(i => i.type === 'grid_violation'),
+          spacingViolations: params.checkSpacing ? qualityReport.issues.filter(i => i.type === 'poor_spacing') : [],
+          positioningViolations: qualityReport.issues.filter(i => i.type === 'origin_cluster' || i.type === 'overlap')
+        }
+      };
+
+      if (params.checkSpacing) {
+        result.complianceScore.breakdown.spacingConsistency = Math.round(compliance.spacing!);
+      }
+
+      if (params.generateReport) {
+        result.detailedReport = {
+          summary: `Design system compliance: ${
+            compliance.overall >= 90 ? 'Excellent' :
+            compliance.overall >= 75 ? 'Good' :
+            compliance.overall >= 60 ? 'Fair' : 'Needs Improvement'
+          }`,
+          recommendations: qualityReport.recommendations,
+          nextSteps: [
+            'Fix critical positioning issues first',
+            'Implement consistent spacing system',
+            'Align elements to grid',
+            'Use design tokens for consistency'
+          ],
+          metrics: qualityReport.metrics
+        };
+      }
+
+      return { data: result };
+
+    } catch (error) {
+      return {
+        error: `Failed to check design system compliance: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+};
+
 // === UTILITY TOOLS ===
 
 export const extractFileKeyFromUrl: McpTool = {
@@ -577,6 +880,12 @@ export const figmaApiTools = [
   setToken,
   clearToken,
   validateToken,
+
+  // Design Quality Diagnostics
+  analyzeLayoutQuality,
+  detectPositioningIssues,
+  generateSpacingReport,
+  checkDesignSystemCompliance,
 
   // Utilities
   extractFileKeyFromUrl

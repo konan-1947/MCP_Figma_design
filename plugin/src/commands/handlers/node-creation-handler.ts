@@ -3,10 +3,18 @@
 
 import { PaintConverter } from '../../utilities/paint-converter';
 import { ERROR_MESSAGES } from '../../core/config';
+import {
+  LayoutCalculator,
+  Point,
+  Size,
+  ViewportInfo,
+  ElementInfo,
+  PositioningOptions
+} from '../../utilities/layout-calculator';
 
 export class NodeCreationHandler {
   /**
-   * Handle node creation operations
+   * Handle node creation operations với smart positioning
    * Extract từ handleNodeCreation() (lines 386-418)
    */
   async handle(operation: string, params: any): Promise<any> {
@@ -66,22 +74,31 @@ export class NodeCreationHandler {
   }
 
   /**
-   * Tạo Frame
+   * Tạo Frame với smart positioning
    * Extract từ createFrame() method (lines 579-611)
    */
   private async createFrame(params: any): Promise<any> {
     const {
       name = 'Frame',
       width = 100, height = 100,
-      x = 0, y = 0,
+      x, y, // Don't default to 0,0 - let smart positioning handle it
       fills
     } = params;
+
+    // Calculate smart position
+    const userProvidedPosition = (x !== undefined || y !== undefined) ? { x, y } : undefined;
+    const smartPosition = this.calculateSmartPosition(
+      'frame',
+      { width, height },
+      userProvidedPosition,
+      { strategy: 'auto-flow', gridSize: 8, minSpacing: 20 }
+    );
 
     const frame = figma.createFrame();
     frame.name = name;
     frame.resize(width, height);
-    frame.x = x;
-    frame.y = y;
+    frame.x = smartPosition.x;
+    frame.y = smartPosition.y;
 
     // Áp dụng background màu nếu được cung cấp
     if (fills && fills.length > 0) {
@@ -89,6 +106,8 @@ export class NodeCreationHandler {
     }
 
     figma.currentPage.appendChild(frame);
+
+    this.logPositioningDecision('Frame', smartPosition, !!userProvidedPosition);
 
     return {
       id: frame.id,
@@ -98,27 +117,40 @@ export class NodeCreationHandler {
       y: frame.y,
       width: frame.width,
       height: frame.height,
-      fills: frame.fills
+      fills: frame.fills,
+      positioning: {
+        strategy: userProvidedPosition ? 'user-defined' : 'smart-auto-flow',
+        wasSmartPositioned: !userProvidedPosition
+      }
     };
   }
 
   /**
-   * Tạo Rectangle
+   * Tạo Rectangle với smart positioning
    * Extract từ createRectangle() method (lines 613-645)
    */
   private async createRectangle(params: any): Promise<any> {
     const {
       width, height,
-      x = 0, y = 0,
+      x, y, // Don't default to 0,0
       name = 'Rectangle',
       fills
     } = params;
 
+    // Calculate smart position
+    const userProvidedPosition = (x !== undefined || y !== undefined) ? { x, y } : undefined;
+    const smartPosition = this.calculateSmartPosition(
+      'rectangle',
+      { width, height },
+      userProvidedPosition,
+      { strategy: 'auto-flow', gridSize: 8, minSpacing: 16 }
+    );
+
     const rect = figma.createRectangle();
     rect.name = name;
     rect.resize(width, height);
-    rect.x = x;
-    rect.y = y;
+    rect.x = smartPosition.x;
+    rect.y = smartPosition.y;
 
     // Áp dụng màu nếu được cung cấp
     if (fills && fills.length > 0) {
@@ -126,6 +158,8 @@ export class NodeCreationHandler {
     }
 
     figma.currentPage.appendChild(rect);
+
+    this.logPositioningDecision('Rectangle', smartPosition, !!userProvidedPosition);
 
     return {
       id: rect.id,
@@ -135,27 +169,40 @@ export class NodeCreationHandler {
       y: rect.y,
       width: rect.width,
       height: rect.height,
-      fills: rect.fills
+      fills: rect.fills,
+      positioning: {
+        strategy: userProvidedPosition ? 'user-defined' : 'smart-auto-flow',
+        wasSmartPositioned: !userProvidedPosition
+      }
     };
   }
 
   /**
-   * Tạo Ellipse
+   * Tạo Ellipse với smart positioning
    * Extract từ createEllipse() method (lines 647-679)
    */
   private async createEllipse(params: any): Promise<any> {
     const {
       width, height,
-      x = 0, y = 0,
+      x, y, // Don't default to 0,0
       name = 'Ellipse',
       fills
     } = params;
 
+    // Calculate smart position
+    const userProvidedPosition = (x !== undefined || y !== undefined) ? { x, y } : undefined;
+    const smartPosition = this.calculateSmartPosition(
+      'ellipse',
+      { width, height },
+      userProvidedPosition,
+      { strategy: 'auto-flow', gridSize: 8, minSpacing: 16 }
+    );
+
     const ellipse = figma.createEllipse();
     ellipse.name = name;
     ellipse.resize(width, height);
-    ellipse.x = x;
-    ellipse.y = y;
+    ellipse.x = smartPosition.x;
+    ellipse.y = smartPosition.y;
 
     // Áp dụng màu nếu được cung cấp
     if (fills && fills.length > 0) {
@@ -163,6 +210,8 @@ export class NodeCreationHandler {
     }
 
     figma.currentPage.appendChild(ellipse);
+
+    this.logPositioningDecision('Ellipse', smartPosition, !!userProvidedPosition);
 
     return {
       id: ellipse.id,
@@ -172,18 +221,22 @@ export class NodeCreationHandler {
       y: ellipse.y,
       width: ellipse.width,
       height: ellipse.height,
-      fills: ellipse.fills
+      fills: ellipse.fills,
+      positioning: {
+        strategy: userProvidedPosition ? 'user-defined' : 'smart-auto-flow',
+        wasSmartPositioned: !userProvidedPosition
+      }
     };
   }
 
   /**
-   * Tạo Text
+   * Tạo Text với smart positioning
    * Extract từ createText() method (lines 681-726)
    */
   private async createText(params: any): Promise<any> {
     const {
       characters,
-      x = 0, y = 0,
+      x, y, // Don't default to 0,0
       fontSize = 16,
       name = 'Text',
       fills
@@ -204,8 +257,22 @@ export class NodeCreationHandler {
     textNode.name = name;
     textNode.characters = characters;
     textNode.fontSize = fontSize;
-    textNode.x = x;
-    textNode.y = y;
+
+    // Calculate approximate size for text (rough estimation)
+    const estimatedWidth = characters.length * fontSize * 0.6; // Approximate character width
+    const estimatedHeight = fontSize * 1.2; // Line height
+
+    // Calculate smart position
+    const userProvidedPosition = (x !== undefined || y !== undefined) ? { x, y } : undefined;
+    const smartPosition = this.calculateSmartPosition(
+      'text',
+      { width: estimatedWidth, height: estimatedHeight },
+      userProvidedPosition,
+      { strategy: 'auto-flow', gridSize: 8, minSpacing: 12 }
+    );
+
+    textNode.x = smartPosition.x;
+    textNode.y = smartPosition.y;
 
     // Áp dụng màu text nếu được cung cấp
     if (fills && fills.length > 0) {
@@ -213,6 +280,8 @@ export class NodeCreationHandler {
     }
 
     figma.currentPage.appendChild(textNode);
+
+    this.logPositioningDecision('Text', smartPosition, !!userProvidedPosition);
 
     return {
       id: textNode.id,
@@ -222,7 +291,14 @@ export class NodeCreationHandler {
       fontSize: textNode.fontSize,
       x: textNode.x,
       y: textNode.y,
-      fills: textNode.fills
+      width: textNode.width, // Actual width after creation
+      height: textNode.height, // Actual height after creation
+      fills: textNode.fills,
+      positioning: {
+        strategy: userProvidedPosition ? 'user-defined' : 'smart-auto-flow',
+        wasSmartPositioned: !userProvidedPosition,
+        estimatedSize: { width: estimatedWidth, height: estimatedHeight }
+      }
     };
   }
 
@@ -920,5 +996,110 @@ export class NodeCreationHandler {
    */
   isOperationSupported(operation: string): boolean {
     return this.getSupportedOperations().includes(operation);
+  }
+
+  // === SMART POSITIONING HELPERS ===
+
+  /**
+   * Get current viewport information
+   */
+  private getCurrentViewport(): ViewportInfo {
+    const viewport = figma.viewport;
+    return {
+      x: viewport.bounds.x,
+      y: viewport.bounds.y,
+      width: viewport.bounds.width,
+      height: viewport.bounds.height,
+      zoom: viewport.zoom
+    };
+  }
+
+  /**
+   * Get existing elements on current page
+   */
+  private getExistingElements(): ElementInfo[] {
+    const elements: ElementInfo[] = [];
+
+    const processNode = (node: SceneNode) => {
+      // Skip invisible nodes và nodes without bounding box
+      if (!node.visible || !('absoluteBoundingBox' in node) || !node.absoluteBoundingBox) {
+        return;
+      }
+
+      const bounds = node.absoluteBoundingBox;
+      elements.push({
+        id: node.id,
+        name: node.name,
+        type: node.type,
+        bounds: {
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height
+        }
+      });
+    };
+
+    // Process all children của current page
+    figma.currentPage.children.forEach(processNode);
+
+    console.log(`[NodeCreationHandler] Found ${elements.length} existing elements on canvas`);
+    return elements;
+  }
+
+  /**
+   * Calculate smart position for new element
+   */
+  private calculateSmartPosition(
+    elementType: string,
+    size: Size,
+    userProvidedPosition?: { x?: number; y?: number },
+    options: PositioningOptions = {}
+  ): Point {
+    // If user explicitly provided position, use it (but still snap to grid)
+    if (userProvidedPosition?.x !== undefined && userProvidedPosition?.y !== undefined) {
+      console.log(`[NodeCreationHandler] Using user-provided position: (${userProvidedPosition.x}, ${userProvidedPosition.y})`);
+      return {
+        x: this.snapToGrid(userProvidedPosition.x, options.gridSize || 8),
+        y: this.snapToGrid(userProvidedPosition.y, options.gridSize || 8)
+      };
+    }
+
+    // Get current canvas state
+    const viewport = this.getCurrentViewport();
+    const existingElements = this.getExistingElements();
+
+    // Use smart positioning if no explicit position provided
+    const smartPosition = LayoutCalculator.calculateNextPosition(
+      elementType,
+      size,
+      existingElements,
+      viewport,
+      {
+        strategy: 'auto-flow',
+        gridSize: 8,
+        minSpacing: 16,
+        avoidCollisions: true,
+        ...options
+      }
+    );
+
+    console.log(`[NodeCreationHandler] Smart position calculated: (${smartPosition.x}, ${smartPosition.y}) for ${elementType}`);
+    return smartPosition;
+  }
+
+  /**
+   * Snap value to grid
+   */
+  private snapToGrid(value: number, gridSize: number): number {
+    return Math.round(value / gridSize) * gridSize;
+  }
+
+  /**
+   * Log positioning decision for debugging
+   */
+  private logPositioningDecision(elementType: string, finalPosition: Point, wasUserProvided: boolean): void {
+    const decision = wasUserProvided ? 'user-provided' : 'smart-calculated';
+    console.log(`[NodeCreationHandler] ${elementType} positioned at (${finalPosition.x}, ${finalPosition.y}) - ${decision}`);
   }
 }

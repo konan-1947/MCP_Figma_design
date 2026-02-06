@@ -324,6 +324,49 @@ export class FigmaTools {
   public async extractFileKeyFromUrl(url: string): Promise<MCPToolResult> {
     return this.executeNewTool('extractFileKeyFromUrl', { url });
   }
+
+  // === DESIGN QUALITY DIAGNOSTIC METHODS ===
+
+  public async analyzeLayoutQuality(fileKey: string, includeDetails: boolean = true): Promise<MCPToolResult> {
+    return this.executeNewTool('analyzeLayoutQuality', { fileKey, includeDetails });
+  }
+
+  public async detectPositioningIssues(fileKey: string, options: {
+    focusArea?: 'origin_clustering' | 'overlaps' | 'spacing' | 'all';
+    severityThreshold?: 'low' | 'medium' | 'high' | 'critical';
+  } = {}): Promise<MCPToolResult> {
+    return this.executeNewTool('detectPositioningIssues', {
+      fileKey,
+      focusArea: options.focusArea || 'all',
+      severityThreshold: options.severityThreshold || 'medium'
+    });
+  }
+
+  public async generateSpacingReport(fileKey: string, options: {
+    gridSize?: number;
+    minSpacing?: number;
+  } = {}): Promise<MCPToolResult> {
+    return this.executeNewTool('generateSpacingReport', {
+      fileKey,
+      gridSize: options.gridSize || 8,
+      minSpacing: options.minSpacing || 16
+    });
+  }
+
+  public async checkDesignSystemCompliance(fileKey: string, options: {
+    gridSize?: number;
+    checkSpacing?: boolean;
+    checkAlignment?: boolean;
+    generateReport?: boolean;
+  } = {}): Promise<MCPToolResult> {
+    return this.executeNewTool('checkDesignSystemCompliance', {
+      fileKey,
+      gridSize: options.gridSize || 8,
+      checkSpacing: options.checkSpacing ?? true,
+      checkAlignment: options.checkAlignment ?? true,
+      generateReport: options.generateReport ?? true
+    });
+  }
 }
 
 export default FigmaTools;
