@@ -1,0 +1,86 @@
+{
+  "sessionId": "1c7e6cf0-227d-4286-b80c-38ba4dc4de2a",
+  "timestamp": "2026-02-06T10:01:51.586Z",
+  "designState": {
+    "frames": [],
+    "nodes": [],
+    "styles": {},
+    "metadata": {}
+  },
+  "conversationHistory": [
+    {
+      "role": "user",
+      "content": "vẽ trang login thật đẹp",
+      "timestamp": "2026-02-06T10:02:05.542Z"
+    },
+    {
+      "role": "assistant",
+      "content": "Đã tạo một trang đăng nhập (Login Page) với kích thước 1280x720px. Thêm tiêu đề 'Đăng nhập' và một khung hình chữ nhật màu trắng có viền xám làm nền cho form đăng nhập, đặt ở vị trí trung tâm.",
+      "timestamp": "2026-02-06T10:02:10.757Z",
+      "actions": [
+        {
+          "tool": "createFrame",
+          "params": {
+            "name": "Login Page",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        {
+          "tool": "createText",
+          "params": {
+            "characters": "Đăng nhập",
+            "name": "Page Title",
+            "fontSize": 24
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 50,
+            "y": 50
+          }
+        },
+        {
+          "tool": "createRectangle",
+          "params": {
+            "name": "Login Form Background",
+            "width": 400,
+            "height": 500
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 440,
+            "y": 110
+          }
+        },
+        {
+          "tool": "setFill",
+          "params": {
+            "nodeId": "{nodeId}",
+            "color": "#FFFFFF"
+          }
+        },
+        {
+          "tool": "setStroke",
+          "params": {
+            "nodeId": "{nodeId}",
+            "color": "#E5E7EB",
+            "weight": 1
+          }
+        },
+        {
+          "tool": "setName",
+          "params": {
+            "nodeId": "{nodeId}",
+            "name": "Login Form Container"
+          }
+        }
+      ]
+    }
+  ]
+}

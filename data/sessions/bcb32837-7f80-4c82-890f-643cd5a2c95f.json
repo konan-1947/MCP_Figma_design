@@ -1,0 +1,174 @@
+{
+  "sessionId": "bcb32837-7f80-4c82-890f-643cd5a2c95f",
+  "timestamp": "2026-02-06T09:56:59.879Z",
+  "designState": {
+    "frames": [],
+    "nodes": [],
+    "styles": {},
+    "metadata": {}
+  },
+  "conversationHistory": [
+    {
+      "role": "user",
+      "content": "vẽ một màn login đơn giản",
+      "timestamp": "2026-02-06T09:57:15.164Z"
+    },
+    {
+      "role": "assistant",
+      "content": "Đã tạo một màn hình đăng nhập đơn giản bao gồm: một tiêu đề 'Đăng nhập', hai trường nhập liệu cho Email và Mật khẩu, và một nút 'Đăng nhập' màu xanh. Các thành phần được căn chỉnh và định cỡ theo chuẩn.",
+      "timestamp": "2026-02-06T09:57:18.036Z",
+      "actions": [
+        {
+          "tool": "createFrame",
+          "params": {
+            "name": "Login Screen",
+            "width": 375,
+            "height": 667
+          }
+        },
+        {
+          "tool": "createText",
+          "params": {
+            "characters": "Đăng nhập",
+            "name": "Title",
+            "fontSize": 24,
+            "fontWeight": 700,
+            "textAlign": "center"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 187.5,
+            "y": 50
+          }
+        },
+        {
+          "tool": "createRectangle",
+          "params": {
+            "width": 300,
+            "height": 40,
+            "name": "Email Input"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 187.5,
+            "y": 150
+          }
+        },
+        {
+          "tool": "setStroke",
+          "params": {
+            "nodeId": "{nodeId}",
+            "color": "#D1D5DB",
+            "weight": 1
+          }
+        },
+        {
+          "tool": "createText",
+          "params": {
+            "characters": "Email",
+            "name": "Email Placeholder",
+            "fontSize": 14,
+            "color": "#6B7280"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 20,
+            "y": 158
+          }
+        },
+        {
+          "tool": "createRectangle",
+          "params": {
+            "width": 300,
+            "height": 40,
+            "name": "Password Input"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 187.5,
+            "y": 210
+          }
+        },
+        {
+          "tool": "setStroke",
+          "params": {
+            "nodeId": "{nodeId}",
+            "color": "#D1D5DB",
+            "weight": 1
+          }
+        },
+        {
+          "tool": "createText",
+          "params": {
+            "characters": "Mật khẩu",
+            "name": "Password Placeholder",
+            "fontSize": 14,
+            "color": "#6B7280"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 20,
+            "y": 218
+          }
+        },
+        {
+          "tool": "createRectangle",
+          "params": {
+            "width": 300,
+            "height": 40,
+            "name": "Login Button"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 187.5,
+            "y": 270
+          }
+        },
+        {
+          "tool": "setFill",
+          "params": {
+            "nodeId": "{nodeId}",
+            "color": "#3B82F6"
+          }
+        },
+        {
+          "tool": "createText",
+          "params": {
+            "characters": "Đăng nhập",
+            "name": "Login Button Text",
+            "fontSize": 14,
+            "color": "#FFFFFF",
+            "fontWeight": 600,
+            "textAlign": "center"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 187.5,
+            "y": 290
+          }
+        }
+      ]
+    }
+  ]
+}

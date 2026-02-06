@@ -1,0 +1,23 @@
+{
+  "sessionId": "bf54adcc-a357-40e1-a186-9ab5adf2379c",
+  "timestamp": "2026-02-06T09:49:14.218Z",
+  "designState": {
+    "frames": [],
+    "nodes": [],
+    "styles": {},
+    "metadata": {}
+  },
+  "conversationHistory": [
+    {
+      "role": "user",
+      "content": "hi",
+      "timestamp": "2026-02-06T09:49:16.935Z"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! How can I help you with your design today?",
+      "timestamp": "2026-02-06T09:49:16.937Z",
+      "actions": []
+    }
+  ]
+}

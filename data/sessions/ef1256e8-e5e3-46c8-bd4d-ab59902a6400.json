@@ -1,0 +1,229 @@
+{
+  "sessionId": "ef1256e8-e5e3-46c8-bd4d-ab59902a6400",
+  "timestamp": "2026-02-06T10:01:11.744Z",
+  "designState": {
+    "frames": [],
+    "nodes": [],
+    "styles": {},
+    "metadata": {}
+  },
+  "conversationHistory": [
+    {
+      "role": "user",
+      "content": "vẽ trang đăng nhập thật đẹp",
+      "timestamp": "2026-02-06T10:01:42.406Z"
+    },
+    {
+      "role": "assistant",
+      "content": "Đã tạo một trang đăng nhập cơ bản trên khung 375x667px, bao gồm tiêu đề, các trường nhập liệu cho email và mật khẩu, nút đăng nhập màu xanh, liên kết \"Quên mật khẩu?\" và một tùy chọn \"Hoặc đăng nhập bằng\".",
+      "timestamp": "2026-02-06T10:01:46.823Z",
+      "actions": [
+        {
+          "tool": "createFrame",
+          "params": {
+            "name": "Trang Đăng Nhập",
+            "width": 375,
+            "height": 667
+          }
+        },
+        {
+          "tool": "createText",
+          "params": {
+            "characters": "Chào mừng trở lại!",
+            "name": "Tiêu đề Trang",
+            "fontSize": 24,
+            "fontWeight": 700,
+            "textAlign": "center"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 375,
+            "y": 100
+          }
+        },
+        {
+          "tool": "createText",
+          "params": {
+            "characters": "Email",
+            "name": "Nhãn Email",
+            "fontSize": 14
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 40,
+            "y": 180
+          }
+        },
+        {
+          "tool": "createRectangle",
+          "params": {
+            "width": 295,
+            "height": 40,
+            "name": "Ô Nhập Email"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 40,
+            "y": 200
+          }
+        },
+        {
+          "tool": "setStroke",
+          "params": {
+            "nodeId": "{nodeId}",
+            "color": "#D1D5DB",
+            "weight": 1
+          }
+        },
+        {
+          "tool": "setCornerRadius",
+          "params": {
+            "nodeId": "{nodeId}",
+            "radius": 4
+          }
+        },
+        {
+          "tool": "createText",
+          "params": {
+            "characters": "Mật khẩu",
+            "name": "Nhãn Mật khẩu",
+            "fontSize": 14
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 40,
+            "y": 260
+          }
+        },
+        {
+          "tool": "createRectangle",
+          "params": {
+            "width": 295,
+            "height": 40,
+            "name": "Ô Nhập Mật khẩu"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 40,
+            "y": 280
+          }
+        },
+        {
+          "tool": "setStroke",
+          "params": {
+            "nodeId": "{nodeId}",
+            "color": "#D1D5DB",
+            "weight": 1
+          }
+        },
+        {
+          "tool": "setCornerRadius",
+          "params": {
+            "nodeId": "{nodeId}",
+            "radius": 4
+          }
+        },
+        {
+          "tool": "createRectangle",
+          "params": {
+            "width": 295,
+            "height": 48,
+            "name": "Nút Đăng Nhập"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 40,
+            "y": 350
+          }
+        },
+        {
+          "tool": "setFill",
+          "params": {
+            "nodeId": "{nodeId}",
+            "color": "#3B82F6"
+          }
+        },
+        {
+          "tool": "setCornerRadius",
+          "params": {
+            "nodeId": "{nodeId}",
+            "radius": 4
+          }
+        },
+        {
+          "tool": "createText",
+          "params": {
+            "characters": "Đăng nhập",
+            "name": "Chữ Nút Đăng Nhập",
+            "fontSize": 16,
+            "fontWeight": 600,
+            "color": "#FFFFFF",
+            "textAlign": "center"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 187.5,
+            "y": 374
+          }
+        },
+        {
+          "tool": "createText",
+          "params": {
+            "characters": "Quên mật khẩu?",
+            "name": "Liên kết Quên Mật khẩu",
+            "fontSize": 14,
+            "color": "#3B82F6",
+            "textAlign": "center"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 187.5,
+            "y": 420
+          }
+        },
+        {
+          "tool": "createText",
+          "params": {
+            "characters": "Hoặc đăng nhập bằng",
+            "name": "Chữ Hoặc Đăng Nhập Bằng",
+            "fontSize": 14,
+            "color": "#6B7280",
+            "textAlign": "center"
+          }
+        },
+        {
+          "tool": "setPosition",
+          "params": {
+            "nodeId": "{nodeId}",
+            "x": 187.5,
+            "y": 480
+          }
+        }
+      ]
+    }
+  ]
+}
